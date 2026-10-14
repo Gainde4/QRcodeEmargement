@@ -1,0 +1,75 @@
+services:
+  # Base de données relationnelle PostgreSQL (Contraintes ACID et Unicité)
+  postgres:
+    image: postgres:16-alpine
+    container_name: signsafe_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgrespassword
+      POSTGRES_DB: emargement_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./database/init.sql:/docker-entrypoint-initdb.d/01_init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d emargement_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # Cache mémoire Redis (Anti-rejeu, verrous d'empreintes et TOTP dynamique)
+  redis:
+    image: redis:7-alpine
+    container_name: signsafe_redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # Backend API & WebSocket (Express, Socket.io, HMAC-SHA256)
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: signsafe_backend
+    restart: unless-stopped
+    ports:
+      - "4000:4000"
+    environment:
+      PORT: 4000
+      JWT_SECRET: super_secret_jwt_key_universite_2024
+      QR_INTERVAL_SEC: 8
+      QR_TOLERANCE_SEC: 5
+      DATABASE_URL: postgresql://postgres:postgrespassword@postgres:5432/emargement_db
+      REDIS_URL: redis://redis:6379
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  # Frontend Next.js PWA (Projecteur salle, Scanner étudiant, Dashboard)
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: signsafe_frontend
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      NEXT_PUBLIC_BACKEND_URL: http://localhost:4000
+    depends_on:
+      - backend
+
+volumes:
+  postgres_data:
+  redis_data:

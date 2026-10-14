@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Démonstration Interactive - Émargement QR Code Dynamique Sécurisé</title>
+  <!-- Tailwind CSS CDN pour affichage instantané sans build -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Bibliothèques JS légères pour QR Code et Cryptographie -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.2.0/crypto-js.min.js"></script>
+  <style>
+    @keyframes pulseRing {
+      0% { transform: scale(0.98); opacity: 0.8; }
+      50% { transform: scale(1.02); opacity: 0.4; }
+      100% { transform: scale(0.98); opacity: 0.8; }
+    }
+    .laser-line {
+      animation: laserScan 2s infinite ease-in-out;
+    }
+    @keyframes laserScan {
+      0% { top: 10%; opacity: 0; }
+      50% { opacity: 1; }
+      100% { top: 90%; opacity: 0; }
+    }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen p-4 sm:p-8 font-sans antialiased">
+  <div class="max-w-7xl mx-auto space-y-6">
+
+    <!-- En-tête -->
+    <header class="flex flex-wrap items-center justify-between gap-4 bg-slate-900/90 border border-slate-800 p-5 rounded-2xl shadow-xl">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-emerald-500 to-teal-400 flex items-center justify-center text-slate-950 font-black text-xl shadow-lg shadow-emerald-500/20">
+          QR
+        </div>
+        <div>
+          <h1 class="text-xl font-bold text-white flex items-center gap-2">
+            Simulateur d'Émargement Sécurisé
+            <span class="text-xs px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">TOTP Live</span>
+          </h1>
+          <p class="text-xs text-slate-400">Épreuve INF301 • Amphi Alan Turing • Rotation cryptographique HMAC-SHA256</p>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-4 text-xs font-mono">
+        <div class="bg-slate-950 border border-slate-800 px-3 py-1.5 rounded-lg text-emerald-400 flex items-center gap-2">
+          <span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
+          <span>Tolérance Serveur: ±5 sec</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- Zone principale : 2 colonnes (Écran Vidéoprojecteur + Smartphone Étudiant) -->
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+      <!-- COLONNE GAUCHE (7/12) : ÉCRAN VIDÉOPROJECTEUR DE LA SALLE -->
+      <section class="lg:col-span-7 bg-slate-900/70 border border-slate-800 p-6 rounded-3xl flex flex-col justify-between shadow-2xl relative overflow-hidden">
+        <div class="flex items-center justify-between border-b border-slate-800 pb-4">
+          <div class="flex items-center gap-2">
+            <span class="px-2.5 py-1 rounded-md bg-cyan-500/10 text-cyan-400 font-bold text-xs uppercase tracking-wider border border-cyan-500/20">
+              Vidéoprojecteur Salle
+            </span>
+            <span class="text-xs text-slate-400 font-medium">Visible par tous les étudiants</span>
+          </div>
+          <div class="text-xs font-mono bg-slate-950 px-2.5 py-1 rounded-md text-slate-300 border border-slate-800">
+            Jeton Actuel: <span id="currentBucketDisplay" class="text-cyan-400 font-bold">#...</span>
+          </div>
+        </div>
+
+        <!-- Centre : QR Code Géant avec Décompte -->
+        <div class="my-6 flex flex-col items-center">
+          <div class="relative p-6 bg-white rounded-3xl shadow-2xl shadow-emerald-500/10 flex flex-col items-center">
+            <!-- Emplacement du QR Code -->
+            <div id="qrcode" class="w-64 h-64 sm:w-80 sm:h-80 flex items-center justify-center"></div>
+
+            <!-- Barre de décompte de 8 secondes -->
+            <div class="w-full mt-4">
+              <div class="flex justify-between items-center text-xs font-mono font-bold text-slate-900 mb-1">
+                <span class="text-emerald-700">Péremption dans</span>
+                <span id="countdownText" class="bg-slate-200 px-2 py-0.5 rounded text-slate-900">8.0s</span>
+              </div>
+              <div class="w-full bg-slate-200 h-2.5 rounded-full overflow-hidden">
+                <div id="progressBar" class="h-full bg-gradient-to-r from-emerald-500 to-teal-500 rounded-full transition-all duration-100 ease-linear" style="width: 100%;"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Payload brut décodé -->
+          <div class="w-full mt-4 bg-slate-950/80 border border-slate-800 p-3 rounded-xl text-[11px] font-mono text-slate-400">
+            <div class="text-slate-500 text-[10px] uppercase font-semibold mb-1">Signature Cryptographique Calculée (HMAC-SHA256) :</div>
+            <div id="rawPayloadPreview" class="truncate text-emerald-400 select-all cursor-pointer" title="Cliquer pour copier">Génération en cours...</div>
+          </div>
+        </div>
+
+        <!-- Bas de carte écran salle -->
+        <div class="border-t border-slate-800 pt-3 flex items-center justify-between text-xs text-slate-400">
+          <span>Clé secrète de session: <code class="text-slate-300">k87f98...734hk</code></span>
+          <span class="text-emerald-400 font-semibold">Empêche les captures d'écran WhatsApp</span>
+        </div>
+      </section>
+
+
+      <!-- COLONNE DROITE (5/12) : SMARTPHONE ÉTUDIANT (PWA) -->
+      <section class="lg:col-span-5 bg-slate-900 border-2 border-slate-800 p-6 rounded-3xl flex flex-col justify-between shadow-2xl relative">
+        <div>
+          <!-- Entête smartphone -->
+          <div class="flex items-center justify-between border-b border-slate-800 pb-3 mb-4">
+            <div class="flex items-center gap-2">
+              <span class="w-3 h-3 rounded-full bg-emerald-500"></span>
+              <h2 class="text-sm font-bold text-white">Smartphone Étudiant (PWA)</h2>
+            </div>
+            <!-- Sélecteur d'étudiant pour test -->
+            <select id="studentSelect" class="bg-slate-950 border border-slate-700 text-xs text-slate-200 rounded-lg px-2 py-1 outline-none">
+              <option value="1">Thomas Dubois (ETU-001)</option>
+              <option value="2">Sarah Benali (ETU-002)</option>
+              <option value="3">Lucas Martin (ETU-003)</option>
+            </select>
+          </div>
+
+          <!-- ZONE CENTRALE SMARTPHONE (Alternance entre Scanner, Écran Vert, ou Écran Rouge) -->
+          <div id="phoneScreen" class="min-h-[360px] flex flex-col justify-center items-center rounded-2xl p-4 transition-all duration-300 bg-slate-950 border border-slate-800 text-center">
+            
+            <!-- ÉTAT 1 : SCANNER EN COURS (Par défaut) -->
+            <div id="screenScanner" class="w-full flex flex-col items-center">
+              <div class="relative w-48 h-48 rounded-2xl border-2 border-dashed border-emerald-500/60 bg-emerald-950/10 flex items-center justify-center overflow-hidden mb-4">
+                <div class="laser-line absolute left-0 right-0 h-0.5 bg-emerald-400 shadow-[0_0_8px_#34d399]"></div>
+                <div class="text-xs text-slate-400 font-medium">Viseur Caméra</div>
+              </div>
+              <p class="text-xs text-slate-400 mb-4">Pointez vers le vidéoprojecteur de la salle</p>
+              
+              <button onclick="simulateScan()" class="w-full py-3 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-bold text-xs rounded-xl shadow-lg shadow-emerald-500/20 transition transform active:scale-95 flex items-center justify-center gap-2">
+                <span>📸 Scanner le QR Code Actuel</span>
+              </button>
+            </div>
+
+            <!-- ÉTAT 2 : ÉCRAN VERT DE SUCCÈS -->
+            <div id="screenSuccess" class="hidden w-full flex flex-col items-center">
+              <div class="w-16 h-16 rounded-full bg-emerald-500 text-slate-950 flex items-center justify-center text-3xl font-black mb-3 shadow-lg shadow-emerald-500/30">
+                ✓
+              </div>
+              <span class="text-[11px] font-bold uppercase tracking-widest text-emerald-400 bg-emerald-500/20 px-3 py-0.5 rounded-full mb-1">
+                Signature Certifiée
+              </span>
+              <h3 class="text-xl font-black text-white">Émargement Validé !</h3>
+              <p class="text-xs text-emerald-200/80 mt-1">Horodatage enregistré dans PostgreSQL</p>
+
+              <div class="w-full bg-slate-900 border border-emerald-500/30 rounded-xl p-3 my-4 text-left text-xs space-y-1.5 font-mono">
+                <div class="flex justify-between text-slate-400">
+                  <span>Étudiant :</span>
+                  <span id="signedStudentName" class="text-white font-bold">Thomas Dubois</span>
+                </div>
+                <div class="flex justify-between text-slate-400">
+                  <span>N° Carte :</span>
+                  <span id="signedStudentNum" class="text-emerald-400">ETU-001</span>
+                </div>
+                <div class="flex justify-between text-slate-400">
+                  <span>Heure :</span>
+                  <span id="signedTime" class="text-slate-200">15:08:42</span>
+                </div>
+              </div>
+
+              <button onclick="resetPhoneScreen()" class="text-xs text-emerald-400 hover:underline">
+                Revenir au scanner
+              </button>
+            </div>
+
+            <!-- ÉTAT 3 : ÉCRAN ROUGE DE REJET (Fraude / Expiration) -->
+            <div id="screenError" class="hidden w-full flex flex-col items-center">
+              <div class="w-16 h-16 rounded-full bg-rose-500 text-white flex items-center justify-center text-3xl font-black mb-3 shadow-lg shadow-rose-500/30">
+                ✕
+              </div>
+              <span class="text-[11px] font-bold uppercase tracking-widest text-rose-300 bg-rose-500/20 px-3 py-0.5 rounded-full mb-1">
+                Refus Sécurité
+              </span>
+              <h3 class="text-lg font-bold text-white">Émargement Rejeté</h3>
+              <p id="errorMessage" class="text-xs text-rose-200 mt-2 bg-rose-950/60 p-3 rounded-xl border border-rose-500/30 font-medium">
+                QR Code expiré. La capture d'écran a dépassé la fenêtre de validité.
+              </p>
+
+              <button onclick="resetPhoneScreen()" class="mt-4 px-4 py-2 bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs rounded-xl transition">
+                Réessayer
+              </button>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- BOUTONS DE TEST DES SCÉNARIOS ANTI-FRAUDE -->
+        <div class="mt-4 pt-3 border-t border-slate-800 space-y-2">
+          <div class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Scénarios de test anti-fraude :</div>
+          <div class="grid grid-cols-2 gap-2 text-[11px]">
+            <button onclick="testReplayAttack()" class="p-2 bg-slate-950 hover:bg-slate-800 border border-amber-500/40 text-amber-300 rounded-lg font-medium transition text-left">
+              ⚠️ Tester envoi capture WhatsApp (30s)
+            </button>
+            <button onclick="testDoubleSigning()" class="p-2 bg-slate-950 hover:bg-slate-800 border border-rose-500/40 text-rose-300 rounded-lg font-medium transition text-left">
+              🚫 Tester double émargement
+            </button>
+          </div>
+        </div>
+      </section>
+
+    </div>
+
+    <!-- REGISTRE D'ÉMARGEMENT EN DIRECT (PostgreSQL Audit Log) -->
+    <section class="bg-slate-900/90 border border-slate-800 rounded-2xl p-5 shadow-xl">
+      <div class="flex items-center justify-between mb-4">
+        <div class="flex items-center gap-2">
+          <span class="w-3 h-3 rounded-full bg-emerald-500"></span>
+          <h3 class="text-sm font-bold text-white uppercase tracking-wider">Registre d'Émargement (PostgreSQL)</h3>
+        </div>
+        <div class="text-xs text-slate-400 font-mono">
+          Total émargés : <span id="totalSignedCount" class="text-emerald-400 font-bold">0</span> / 3
+        </div>
+      </div>
+
+      <div class="overflow-x-auto">
+        <table class="w-full text-left text-xs font-mono">
+          <thead class="bg-slate-950 text-slate-400 border-b border-slate-800">
+            <tr>
+              <th class="py-2.5 px-4">Horodatage</th>
+              <th class="py-2.5 px-4">N° Carte</th>
+              <th class="py-2.5 px-4">Étudiant</th>
+              <th class="py-2.5 px-4">Mode</th>
+              <th class="py-2.5 px-4">Empreinte Appareil</th>
+              <th class="py-2.5 px-4">Audit Nonce</th>
+            </tr>
+          </thead>
+          <tbody id="attendanceLogTable" class="divide-y divide-slate-800 text-slate-300">
+            <tr>
+              <td colspan="6" class="py-4 text-center text-slate-500 italic font-sans">
+                Aucun émargement pour l'instant. Utilisez le bouton "Scanner le QR Code Actuel" sur le smartphone.
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+  </div>
+
+  <!-- Script Logique Métier Cryptographique & Rotation TOTP -->
+  <script>
+    // Configuration
+    const SESSION_ID = 'cccccccc-cccc-cccc-cccc-cccccccccccc';
+    const SESSION_SECRET = 'k87f983hfd98h23f9823hfsd98f734hk';
+    const ROTATION_INTERVAL_SEC = 8; // Changement toutes les 8 secondes
+
+    // Étudiants simulés
+    const STUDENTS = {
+      "1": { id: "11111111-1111-1111-1111-111111111111", name: "Thomas Dubois", num: "ETU-001" },
+      "2": { id: "22222222-2222-2222-2222-222222222222", name: "Sarah Benali", num: "ETU-002" },
+      "3": { id: "33333333-3333-3333-3333-333333333333", name: "Lucas Martin", num: "ETU-003" }
+    };
+
+    // État serveur simulé (PostgreSQL + Redis)
+    const dbAttendances = []; // Enregistrements PostgreSQL
+    const redisUsedNonces = new Set(); // Nonces déjà consommés
+
+    // Variables de rotation
+    let currentRawToken = '';
+    let currentPayload = null;
+    let oldCapturedToken = null; // Utilisé pour tester l'attaque par capture d'écran WhatsApp
+    let countdown = ROTATION_INTERVAL_SEC;
+    let qrcodeInstance = null;
+
+    // Calcul de signature HMAC-SHA256
+    function computeHmac(sessionId, bucket, nonce, secret) {
+      const message = `${sessionId}:${bucket}:${nonce}`;
+      return CryptoJS.HmacSHA256(message, secret).toString(CryptoJS.enc.Hex);
+    }
+
+    // Génère un nouveau QR Code dynamique
+    function generateNewQr() {
+      const now = Date.now();
+      const bucket = Math.floor(now / (ROTATION_INTERVAL_SEC * 1000));
+      const nonce = Math.random().toString(36).substring(2, 10);
+      const signature = computeHmac(SESSION_ID, bucket, nonce, SESSION_SECRET);
+
+      currentPayload = {
+        sessionId: SESSION_ID,
+        timestamp: now,
+        bucket: bucket,
+        nonce: nonce,
+        signature: signature
+      };
+
+      currentRawToken = btoa(JSON.stringify(currentPayload));
+
+      // Mettre à jour l'affichage
+      document.getElementById('currentBucketDisplay').innerText = `#${bucket}`;
+      document.getElementById('rawPayloadPreview').innerText = currentRawToken;
+
+      // Dessiner le QR Code
+      const qrContainer = document.getElementById('qrcode');
+      qrContainer.innerHTML = '';
+      qrcodeInstance = new QRCode(qrContainer, {
+        text: currentRawToken,
+        width: 256,
+        height: 256,
+        colorDark: "#0f172a",
+        colorLight: "#ffffff",
+        correctLevel: QRCode.CorrectLevel.M
+      });
+
+      // Stocker l'ancien token pour tester l'attaque différée après 2 rotations
+      if (!oldCapturedToken && bucket % 2 === 0) {
+        oldCapturedToken = currentRawToken;
+      }
+    }
+
+    // Boucle de décompte toutes les 100ms
+    setInterval(() => {
+      countdown -= 0.1;
+      if (countdown <= 0) {
+        countdown = ROTATION_INTERVAL_SEC;
+        generateNewQr();
+      }
+      document.getElementById('countdownText').innerText = `${Math.max(0, countdown).toFixed(1)}s`;
+      const progressPercent = (countdown / ROTATION_INTERVAL_SEC) * 100;
+      document.getElementById('progressBar').style.width = `${progressPercent}%`;
+    }, 100);
+
+    // Initialisation au chargement
+    generateNewQr();
+
+    // Fonction de vérification du serveur (Simule le backend Node.js + Redis + PostgreSQL)
+    function verifyAndRecordAttendance(rawToken, studentId, deviceFp) {
+      try {
+        const decoded = JSON.parse(atob(rawToken));
+        const currentBucket = Math.floor(Date.now() / (ROTATION_INTERVAL_SEC * 1000));
+
+        // 1. Contrôle de la fenêtre de validité (Tolérance ±1 bucket = ±8s)
+        if (Math.abs(currentBucket - decoded.bucket) > 1) {
+          return {
+            valid: false,
+            reason: `QR Code expiré (Jeton #${decoded.bucket} alors que le serveur est à #${currentBucket}). Les captures d'écran transmises sont refusées.`
+          };
+        }
+
+        // 2. Contrôle d'authenticité cryptographique HMAC
+        const expectedSig = computeHmac(decoded.sessionId, decoded.bucket, decoded.nonce, SESSION_SECRET);
+        if (expectedSig !== decoded.signature) {
+          return { valid: false, reason: "Signature cryptographique invalide (QR contrefait)." };
+        }
+
+        // 3. Contrôle anti-rejeu Redis
+        if (redisUsedNonces.has(decoded.nonce)) {
+          return { valid: false, reason: "Jeton dynamique déjà consommé (Tentative de rejeu interceptée)." };
+        }
+
+        // 4. Contrôle contrainte UNIQUE PostgreSQL (session_id, student_id)
+        const alreadySigned = dbAttendances.some(a => a.studentId === studentId);
+        if (alreadySigned) {
+          return { valid: false, reason: "Double émargement rejeté : Cet étudiant a déjà émargé pour cette épreuve." };
+        }
+
+        // Succès ! Consommation dans Redis et insertion PostgreSQL
+        redisUsedNonces.add(decoded.nonce);
+        const signedAt = new Date();
+        dbAttendances.push({
+          studentId: studentId,
+          signedAt: signedAt,
+          deviceFp: deviceFp,
+          nonce: decoded.nonce
+        });
+
+        return { valid: true, signedAt: signedAt, nonce: decoded.nonce };
+      } catch (e) {
+        return { valid: false, reason: "Format de jeton illisible." };
+      }
+    }
+
+    // Action : Scan étudiant en direct
+    function simulateScan() {
+      const studentKey = document.getElementById('studentSelect').value;
+      const student = STUDENTS[studentKey];
+      const result = verifyAndRecordAttendance(currentRawToken, student.id, "SMARTPHONE_FINGERPRINT_A9");
+
+      if (result.valid) {
+        showSuccessScreen(student, result.signedAt);
+        updateAttendanceLogTable();
+      } else {
+        showErrorScreen(result.reason);
+      }
+    }
+
+    // Scénario Anti-Fraude 1 : Capture WhatsApp d'il y a 30 secondes
+    function testReplayAttack() {
+      const studentKey = document.getElementById('studentSelect').value;
+      const student = STUDENTS[studentKey];
+      
+      // Fabrique un jeton artificiellement vieux (de 4 buckets en arrière = ~32 secondes)
+      const oldBucket = Math.floor(Date.now() / (ROTATION_INTERVAL_SEC * 1000)) - 4;
+      const oldNonce = "old_nonce_whatsapp";
+      const oldSig = computeHmac(SESSION_ID, oldBucket, oldNonce, SESSION_SECRET);
+      const expiredPayload = {
+        sessionId: SESSION_ID,
+        timestamp: Date.now() - 32000,
+        bucket: oldBucket,
+        nonce: oldNonce,
+        signature: oldSig
+      };
+      const expiredRawToken = btoa(JSON.stringify(expiredPayload));
+
+      const result = verifyAndRecordAttendance(expiredRawToken, student.id, "SMARTPHONE_FINGERPRINT_A9");
+      if (!result.valid) {
+        showErrorScreen(result.reason);
+      }
+    }
+
+    // Scénario Anti-Fraude 2 : Double émargement du même étudiant
+    function testDoubleSigning() {
+      const studentKey = document.getElementById('studentSelect').value;
+      const student = STUDENTS[studentKey];
+
+      // Tente d'émarger une 2ème fois
+      const result = verifyAndRecordAttendance(currentRawToken, student.id, "SMARTPHONE_FINGERPRINT_A9");
+      if (!result.valid) {
+        showErrorScreen(result.reason);
+      } else {
+        showSuccessScreen(student, result.signedAt);
+        updateAttendanceLogTable();
+      }
+    }
+
+    // Gestion de l'affichage du smartphone
+    function showSuccessScreen(student, date) {
+      document.getElementById('screenScanner').classList.add('hidden');
+      document.getElementById('screenError').classList.add('hidden');
+      document.getElementById('screenSuccess').classList.remove('hidden');
+
+      document.getElementById('signedStudentName').innerText = student.name;
+      document.getElementById('signedStudentNum').innerText = student.num;
+      document.getElementById('signedTime').innerText = date.toLocaleTimeString('fr-FR');
+    }
+
+    function showErrorScreen(msg) {
+      document.getElementById('screenScanner').classList.add('hidden');
+      document.getElementById('screenSuccess').classList.add('hidden');
+      document.getElementById('screenError').classList.remove('hidden');
+      document.getElementById('errorMessage').innerText = msg;
+    }
+
+    function resetPhoneScreen() {
+      document.getElementById('screenSuccess').classList.add('hidden');
+      document.getElementById('screenError').classList.add('hidden');
+      document.getElementById('screenScanner').classList.remove('hidden');
+    }
+
+    // Mise à jour de la table SQL
+    function updateAttendanceLogTable() {
+      const tbody = document.getElementById('attendanceLogTable');
+      document.getElementById('totalSignedCount').innerText = dbAttendances.length;
+
+      if (dbAttendances.length === 0) return;
+
+      tbody.innerHTML = '';
+      dbAttendances.forEach(att => {
+        const student = Object.values(STUDENTS).find(s => s.id === att.studentId);
+        const tr = document.createElement('tr');
+        tr.className = 'hover:bg-slate-800/40 transition';
+        tr.innerHTML = `
+          <td class="py-2.5 px-4 text-slate-400">${att.signedAt.toLocaleTimeString('fr-FR')}</td>
+          <td class="py-2.5 px-4 font-bold text-emerald-400">${student.num}</td>
+          <td class="py-2.5 px-4 text-white font-medium">${student.name}</td>
+          <td class="py-2.5 px-4"><span class="px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[10px]">QR_DYNAMIC</span></td>
+          <td class="py-2.5 px-4 text-slate-500 text-[10px]">${att.deviceFp}</td>
+          <td class="py-2.5 px-4 font-mono text-cyan-400 text-[10px]">${att.nonce}</td>
+        `;
+        tbody.prepend(tr);
+      });
+    }
+  </script>
+</body>
+</html>

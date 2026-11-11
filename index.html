@@ -3,198 +3,288 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Démonstration Interactive - Émargement QR Code Dynamique Sécurisé</title>
-  <!-- Tailwind CSS CDN pour affichage instantané sans build -->
+  <title>Système d'Émargement d'Évaluation par QR Code</title>
+  <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
-  <!-- Bibliothèques JS légères pour QR Code et Cryptographie -->
+  <!-- QR Code Generator -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.2.0/crypto-js.min.js"></script>
+  <!-- SheetJS pour export Excel -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <style>
-    @keyframes pulseRing {
-      0% { transform: scale(0.98); opacity: 0.8; }
-      50% { transform: scale(1.02); opacity: 0.4; }
-      100% { transform: scale(0.98); opacity: 0.8; }
-    }
-    .laser-line {
-      animation: laserScan 2s infinite ease-in-out;
-    }
-    @keyframes laserScan {
-      0% { top: 10%; opacity: 0; }
-      50% { opacity: 1; }
-      100% { top: 90%; opacity: 0; }
+    @media print {
+      body * { visibility: hidden; }
+      #printableArea, #printableArea * { visibility: visible; }
+      #printableArea { position: absolute; left: 0; top: 0; width: 100%; }
     }
   </style>
 </head>
-<body class="bg-slate-950 text-slate-100 min-h-screen p-4 sm:p-8 font-sans antialiased">
-  <div class="max-w-7xl mx-auto space-y-6">
+<body class="bg-slate-900 text-slate-100 min-h-screen font-sans antialiased">
 
-    <!-- En-tête -->
-    <header class="flex flex-wrap items-center justify-between gap-4 bg-slate-900/90 border border-slate-800 p-5 rounded-2xl shadow-xl">
-      <div class="flex items-center gap-3">
-        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-emerald-500 to-teal-400 flex items-center justify-center text-slate-950 font-black text-xl shadow-lg shadow-emerald-500/20">
-          QR
+  <!-- ========================================================================= -->
+  <!-- VUE 1 : FORMULAIRE ÉTUDIANT (OUVERT APRÈS SCAN DU QR CODE SUR SMARTPHONE) -->
+  <!-- ========================================================================= -->
+  <div id="studentFormView" class="hidden min-h-screen bg-slate-950 p-4 sm:p-6 flex flex-col justify-center items-center">
+    <div class="w-full max-w-lg bg-slate-900 border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-2xl relative">
+      
+      <!-- En-tête formulaire -->
+      <div class="text-center mb-6">
+        <div class="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-emerald-500/10 text-emerald-400 mb-3 border border-emerald-500/20">
+          <i class="fa-solid fa-signature text-2xl"></i>
         </div>
-        <div>
-          <h1 class="text-xl font-bold text-white flex items-center gap-2">
-            Simulateur d'Émargement Sécurisé
-            <span class="text-xs px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">TOTP Live</span>
-          </h1>
-          <p class="text-xs text-slate-400">Épreuve INF301 • Amphi Alan Turing • Rotation cryptographique HMAC-SHA256</p>
+        <h1 class="text-2xl font-black text-white">Feuille d'Émargement</h1>
+        <p class="text-xs text-slate-400 mt-1">Veuillez renseigner vos informations pour certifier votre présence à l'évaluation.</p>
+      </div>
+
+      <!-- Badge de l'évaluation personnalisée -->
+      <div class="bg-slate-950/80 border border-slate-800 rounded-2xl p-4 mb-6 text-xs space-y-1.5">
+        <div class="flex justify-between">
+          <span class="text-slate-400">Épreuve :</span>
+          <span id="studExamTitle" class="font-bold text-emerald-400">Mathématiques Avancées</span>
+        </div>
+        <div class="flex justify-between">
+          <span class="text-slate-400">Filière / Promo :</span>
+          <span id="studExamPromo" class="font-semibold text-slate-200">Informatique - Licence 3</span>
+        </div>
+        <div class="flex justify-between">
+          <span class="text-slate-400">Horaire prévu :</span>
+          <span id="studExamSchedule" class="font-mono text-cyan-400">08:30 - 11:30</span>
+        </div>
+        <div class="flex justify-between">
+          <span class="text-slate-400">Salle :</span>
+          <span id="studExamRoom" class="text-slate-200">Amphithéâtre A</span>
         </div>
       </div>
 
-      <div class="flex items-center gap-4 text-xs font-mono">
-        <div class="bg-slate-950 border border-slate-800 px-3 py-1.5 rounded-lg text-emerald-400 flex items-center gap-2">
-          <span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
-          <span>Tolérance Serveur: ±5 sec</span>
+      <!-- Formulaire d'émargement -->
+      <form id="attendanceForm" onsubmit="submitStudentAttendance(event)" class="space-y-4 text-xs">
+        <div>
+          <label class="block text-slate-300 font-semibold mb-1">Nom complet (Nom & Prénom) *</label>
+          <div class="relative">
+            <span class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-500">
+              <i class="fa-solid fa-user"></i>
+            </span>
+            <input type="text" id="studFullName" required placeholder="Ex: Moussa Diop" 
+              class="w-full bg-slate-950 border border-slate-700 rounded-xl pl-9 pr-3 py-2.5 text-white placeholder:text-slate-600 focus:outline-none focus:border-emerald-500 text-sm">
+          </div>
         </div>
+
+        <div>
+          <label class="block text-slate-300 font-semibold mb-1">Numéro INE (Identifiant National Étudiant) *</label>
+          <div class="relative">
+            <span class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-500">
+              <i class="fa-solid fa-id-card"></i>
+            </span>
+            <input type="text" id="studINE" required placeholder="Ex: N02194820211" 
+              class="w-full bg-slate-950 border border-slate-700 rounded-xl pl-9 pr-3 py-2.5 text-white placeholder:text-slate-600 focus:outline-none focus:border-emerald-500 text-sm font-mono">
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-slate-300 font-semibold mb-1">Adresse email institutionnelle *</label>
+          <div class="relative">
+            <span class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-500">
+              <i class="fa-solid fa-envelope"></i>
+            </span>
+            <input type="email" id="studEmail" required placeholder="Ex: moussa.diop@univ-thies.sn" 
+              class="w-full bg-slate-950 border border-slate-700 rounded-xl pl-9 pr-3 py-2.5 text-white placeholder:text-slate-600 focus:outline-none focus:border-emerald-500 text-sm">
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-slate-300 font-semibold mb-1">Heure de sortie (facultatif)</label>
+            <input type="time" id="studExitTime" 
+              class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2.5 text-white focus:outline-none focus:border-emerald-500 text-sm">
+          </div>
+          <div>
+            <label class="block text-slate-300 font-semibold mb-1">N° de Table (facultatif)</label>
+            <input type="text" id="studDeskNum" placeholder="Ex: Table 24" 
+              class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2.5 text-white placeholder:text-slate-600 focus:outline-none focus:border-emerald-500 text-sm">
+          </div>
+        </div>
+
+        <!-- Zone de signature tactile -->
+        <div>
+          <div class="flex justify-between items-center mb-1">
+            <label class="block text-slate-300 font-semibold">Signature manuscrite tactile</label>
+            <button type="button" onclick="clearSignatureCanvas()" class="text-[11px] text-slate-400 hover:text-rose-400">Effacer</button>
+          </div>
+          <div class="bg-white rounded-xl overflow-hidden border border-slate-700">
+            <canvas id="signatureCanvas" height="110" class="w-full cursor-crosshair block touch-none"></canvas>
+          </div>
+        </div>
+
+        <button type="submit" 
+          class="w-full mt-4 py-3.5 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-bold text-sm rounded-xl shadow-lg shadow-emerald-500/20 transition flex items-center justify-center gap-2">
+          <i class="fa-solid fa-check"></i>
+          <span>Valider et enregistrer mon émargement</span>
+        </button>
+      </form>
+
+      <!-- Écran vert de confirmation après validation -->
+      <div id="studentSuccessBox" class="hidden text-center py-6">
+        <div class="w-16 h-16 rounded-full bg-emerald-500 text-slate-950 flex items-center justify-center text-3xl font-black mx-auto mb-4 shadow-lg shadow-emerald-500/30">
+          <i class="fa-solid fa-check"></i>
+        </div>
+        <span class="px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-300 font-bold text-xs uppercase tracking-wider">
+          Émargement Enregistré
+        </span>
+        <h2 class="text-xl font-bold text-white mt-2">Merci, votre présence est certifiée !</h2>
+        <p class="text-xs text-slate-400 mt-1">Vous pouvez ranger votre téléphone et commencer l'épreuve.</p>
+        
+        <div class="mt-6 p-4 bg-slate-950 rounded-2xl border border-slate-800 text-left text-xs space-y-1 font-mono">
+          <div><span class="text-slate-500">Étudiant :</span> <span id="confName" class="text-white font-bold"></span></div>
+          <div><span class="text-slate-500">INE :</span> <span id="confINE" class="text-emerald-400"></span></div>
+          <div><span class="text-slate-500">Horodatage :</span> <span id="confTime" class="text-slate-300"></span></div>
+        </div>
+
+        <button onclick="backToSupervisorView()" class="mt-6 text-xs text-slate-400 hover:text-white underline">
+          ← Retourner à la console de gestion
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- VUE 2 : CONSOLE DE GESTION SURVEILLANT & GÉNÉRATEUR QR CODE               -->
+  <!-- ========================================================================= -->
+  <div id="supervisorDashboardView" class="p-4 sm:p-8 max-w-7xl mx-auto space-y-6">
+
+    <!-- En-tête de l'application -->
+    <header class="flex flex-wrap items-center justify-between gap-4 bg-slate-800/80 border border-slate-700/80 p-5 rounded-3xl shadow-xl">
+      <div class="flex items-center gap-3">
+        <div class="w-12 h-12 rounded-2xl bg-gradient-to-tr from-emerald-500 to-teal-400 flex items-center justify-center text-slate-950 text-2xl font-black shadow-lg shadow-emerald-500/20">
+          <i class="fa-solid fa-qrcode"></i>
+        </div>
+        <div>
+          <h1 class="text-xl font-black text-white flex items-center gap-2">
+            Gestionnaire d'Émargement d'Évaluations
+            <span class="text-[11px] px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-semibold">Surveillant</span>
+          </h1>
+          <p class="text-xs text-slate-400">Génération de QR code personnalisé par filière & suivi en temps réel</p>
+        </div>
+      </div>
+
+      <!-- Raccourcis actions -->
+      <div class="flex items-center gap-2">
+        <button onclick="testStudentScanSimulation()" 
+          class="px-3.5 py-2 rounded-xl bg-slate-900 border border-slate-700 text-xs font-semibold text-emerald-400 hover:bg-slate-700 transition flex items-center gap-2">
+          <i class="fa-solid fa-mobile-screen-button"></i>
+          <span>Tester le formulaire étudiant</span>
+        </button>
       </div>
     </header>
 
-    <!-- Zone principale : 2 colonnes (Écran Vidéoprojecteur + Smartphone Étudiant) -->
+    <!-- Grille principale : Paramétrage Évaluation + QR Code personnalisé généré -->
     <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
 
-      <!-- COLONNE GAUCHE (7/12) : ÉCRAN VIDÉOPROJECTEUR DE LA SALLE -->
-      <section class="lg:col-span-7 bg-slate-900/70 border border-slate-800 p-6 rounded-3xl flex flex-col justify-between shadow-2xl relative overflow-hidden">
-        <div class="flex items-center justify-between border-b border-slate-800 pb-4">
-          <div class="flex items-center gap-2">
-            <span class="px-2.5 py-1 rounded-md bg-cyan-500/10 text-cyan-400 font-bold text-xs uppercase tracking-wider border border-cyan-500/20">
-              Vidéoprojecteur Salle
-            </span>
-            <span class="text-xs text-slate-400 font-medium">Visible par tous les étudiants</span>
+      <!-- COLONNE 1 : CONFIGURATION PERSONNALISÉE DE L'ÉVALUATION (7/12) -->
+      <section class="lg:col-span-7 bg-slate-800/60 border border-slate-700/80 p-6 rounded-3xl shadow-xl flex flex-col justify-between">
+        <div>
+          <div class="flex items-center justify-between border-b border-slate-700 pb-3 mb-5">
+            <h2 class="text-base font-bold text-white flex items-center gap-2">
+              <i class="fa-solid fa-sliders text-emerald-400"></i>
+              <span>1. Personnalisation de l'Évaluation</span>
+            </h2>
+            <span class="text-xs text-slate-400">Tous les champs sont requis</span>
           </div>
-          <div class="text-xs font-mono bg-slate-950 px-2.5 py-1 rounded-md text-slate-300 border border-slate-800">
-            Jeton Actuel: <span id="currentBucketDisplay" class="text-cyan-400 font-bold">#...</span>
-          </div>
-        </div>
 
-        <!-- Centre : QR Code Géant avec Décompte -->
-        <div class="my-6 flex flex-col items-center">
-          <div class="relative p-6 bg-white rounded-3xl shadow-2xl shadow-emerald-500/10 flex flex-col items-center">
-            <!-- Emplacement du QR Code -->
-            <div id="qrcode" class="w-64 h-64 sm:w-80 sm:h-80 flex items-center justify-center"></div>
-
-            <!-- Barre de décompte de 8 secondes -->
-            <div class="w-full mt-4">
-              <div class="flex justify-between items-center text-xs font-mono font-bold text-slate-900 mb-1">
-                <span class="text-emerald-700">Péremption dans</span>
-                <span id="countdownText" class="bg-slate-200 px-2 py-0.5 rounded text-slate-900">8.0s</span>
+          <form id="examConfigForm" onsubmit="generateCustomQrCode(event)" class="space-y-4 text-xs">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label class="block text-slate-300 font-semibold mb-1">Matière / Épreuve *</label>
+                <input type="text" id="cfgMatiere" required value="Algorithmique & Structures de Données" 
+                  placeholder="Ex: Algorithmique, Droit Civil..." 
+                  class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2.5 text-white focus:outline-none focus:border-emerald-500 text-xs">
               </div>
-              <div class="w-full bg-slate-200 h-2.5 rounded-full overflow-hidden">
-                <div id="progressBar" class="h-full bg-gradient-to-r from-emerald-500 to-teal-500 rounded-full transition-all duration-100 ease-linear" style="width: 100%;"></div>
+              <div>
+                <label class="block text-slate-300 font-semibold mb-1">Filière *</label>
+                <input type="text" id="cfgFiliere" required value="Informatique (Génie Logiciel)" 
+                  placeholder="Ex: Génie Civil, Économie..." 
+                  class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2.5 text-white focus:outline-none focus:border-emerald-500 text-xs">
               </div>
             </div>
-          </div>
 
-          <!-- Payload brut décodé -->
-          <div class="w-full mt-4 bg-slate-950/80 border border-slate-800 p-3 rounded-xl text-[11px] font-mono text-slate-400">
-            <div class="text-slate-500 text-[10px] uppercase font-semibold mb-1">Signature Cryptographique Calculée (HMAC-SHA256) :</div>
-            <div id="rawPayloadPreview" class="truncate text-emerald-400 select-all cursor-pointer" title="Cliquer pour copier">Génération en cours...</div>
-          </div>
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div>
+                <label class="block text-slate-300 font-semibold mb-1">Promotion / Niveau *</label>
+                <input type="text" id="cfgPromo" required value="Licence 3 (Promo 2024)" 
+                  placeholder="Ex: Master 1, L2..." 
+                  class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2.5 text-white focus:outline-none focus:border-emerald-500 text-xs">
+              </div>
+              <div>
+                <label class="block text-slate-300 font-semibold mb-1">Salle / Amphi *</label>
+                <input type="text" id="cfgSalle" required value="Amphithéâtre A" 
+                  placeholder="Ex: Salle 104, Amphi B..." 
+                  class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2.5 text-white focus:outline-none focus:border-emerald-500 text-xs">
+              </div>
+              <div>
+                <label class="block text-slate-300 font-semibold mb-1">Date d'évaluation *</label>
+                <input type="date" id="cfgDate" required 
+                  class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-emerald-500 text-xs">
+              </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-4">
+              <div>
+                <label class="block text-slate-300 font-semibold mb-1">Heure de début *</label>
+                <input type="time" id="cfgHeureDebut" required value="08:30" 
+                  class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-emerald-500 text-xs">
+              </div>
+              <div>
+                <label class="block text-slate-300 font-semibold mb-1">Heure de fin prévue *</label>
+                <input type="time" id="cfgHeureFin" required value="11:30" 
+                  class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-emerald-500 text-xs">
+              </div>
+            </div>
+
+            <button type="submit" 
+              class="w-full py-3 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-bold text-xs rounded-xl shadow-lg shadow-emerald-500/20 transition flex items-center justify-center gap-2">
+              <i class="fa-solid fa-arrows-rotate"></i>
+              <span>Générer et Actualiser le QR Code de l'Évaluation</span>
+            </button>
+          </form>
         </div>
 
-        <!-- Bas de carte écran salle -->
-        <div class="border-t border-slate-800 pt-3 flex items-center justify-between text-xs text-slate-400">
-          <span>Clé secrète de session: <code class="text-slate-300">k87f98...734hk</code></span>
-          <span class="text-emerald-400 font-semibold">Empêche les captures d'écran WhatsApp</span>
+        <div class="mt-4 pt-3 border-t border-slate-700/80 flex items-center justify-between text-[11px] text-slate-400">
+          <span><i class="fa-solid fa-circle-check text-emerald-400 mr-1"></i>L'étudiant n'a besoin d'aucune application spéciale.</span>
+          <span>Appareil photo standard = Redirection directe</span>
         </div>
       </section>
 
+      <!-- COLONNE 2 : QR CODE GÉNÉRÉ POUR LA SALLE (5/12) -->
+      <section class="lg:col-span-5 bg-slate-800/60 border border-slate-700/80 p-6 rounded-3xl shadow-xl flex flex-col justify-between items-center text-center">
+        <div class="w-full flex items-center justify-between border-b border-slate-700 pb-3 mb-4">
+          <h2 class="text-base font-bold text-white flex items-center gap-2">
+            <i class="fa-solid fa-qrcode text-emerald-400"></i>
+            <span>2. QR Code à Projeter</span>
+          </h2>
+          <button onclick="printQrPoster()" class="text-xs text-slate-300 hover:text-white bg-slate-900 px-2.5 py-1 rounded-lg border border-slate-700 flex items-center gap-1">
+            <i class="fa-solid fa-print"></i>
+            <span>Imprimer</span>
+          </button>
+        </div>
 
-      <!-- COLONNE DROITE (5/12) : SMARTPHONE ÉTUDIANT (PWA) -->
-      <section class="lg:col-span-5 bg-slate-900 border-2 border-slate-800 p-6 rounded-3xl flex flex-col justify-between shadow-2xl relative">
-        <div>
-          <!-- Entête smartphone -->
-          <div class="flex items-center justify-between border-b border-slate-800 pb-3 mb-4">
-            <div class="flex items-center gap-2">
-              <span class="w-3 h-3 rounded-full bg-emerald-500"></span>
-              <h2 class="text-sm font-bold text-white">Smartphone Étudiant (PWA)</h2>
-            </div>
-            <!-- Sélecteur d'étudiant pour test -->
-            <select id="studentSelect" class="bg-slate-950 border border-slate-700 text-xs text-slate-200 rounded-lg px-2 py-1 outline-none">
-              <option value="1">Thomas Dubois (ETU-001)</option>
-              <option value="2">Sarah Benali (ETU-002)</option>
-              <option value="3">Lucas Martin (ETU-003)</option>
-            </select>
-          </div>
-
-          <!-- ZONE CENTRALE SMARTPHONE (Alternance entre Scanner, Écran Vert, ou Écran Rouge) -->
-          <div id="phoneScreen" class="min-h-[360px] flex flex-col justify-center items-center rounded-2xl p-4 transition-all duration-300 bg-slate-950 border border-slate-800 text-center">
-            
-            <!-- ÉTAT 1 : SCANNER EN COURS (Par défaut) -->
-            <div id="screenScanner" class="w-full flex flex-col items-center">
-              <div class="relative w-48 h-48 rounded-2xl border-2 border-dashed border-emerald-500/60 bg-emerald-950/10 flex items-center justify-center overflow-hidden mb-4">
-                <div class="laser-line absolute left-0 right-0 h-0.5 bg-emerald-400 shadow-[0_0_8px_#34d399]"></div>
-                <div class="text-xs text-slate-400 font-medium">Viseur Caméra</div>
-              </div>
-              <p class="text-xs text-slate-400 mb-4">Pointez vers le vidéoprojecteur de la salle</p>
-              
-              <button onclick="simulateScan()" class="w-full py-3 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-bold text-xs rounded-xl shadow-lg shadow-emerald-500/20 transition transform active:scale-95 flex items-center justify-center gap-2">
-                <span>📸 Scanner le QR Code Actuel</span>
-              </button>
-            </div>
-
-            <!-- ÉTAT 2 : ÉCRAN VERT DE SUCCÈS -->
-            <div id="screenSuccess" class="hidden w-full flex flex-col items-center">
-              <div class="w-16 h-16 rounded-full bg-emerald-500 text-slate-950 flex items-center justify-center text-3xl font-black mb-3 shadow-lg shadow-emerald-500/30">
-                ✓
-              </div>
-              <span class="text-[11px] font-bold uppercase tracking-widest text-emerald-400 bg-emerald-500/20 px-3 py-0.5 rounded-full mb-1">
-                Signature Certifiée
-              </span>
-              <h3 class="text-xl font-black text-white">Émargement Validé !</h3>
-              <p class="text-xs text-emerald-200/80 mt-1">Horodatage enregistré dans PostgreSQL</p>
-
-              <div class="w-full bg-slate-900 border border-emerald-500/30 rounded-xl p-3 my-4 text-left text-xs space-y-1.5 font-mono">
-                <div class="flex justify-between text-slate-400">
-                  <span>Étudiant :</span>
-                  <span id="signedStudentName" class="text-white font-bold">Thomas Dubois</span>
-                </div>
-                <div class="flex justify-between text-slate-400">
-                  <span>N° Carte :</span>
-                  <span id="signedStudentNum" class="text-emerald-400">ETU-001</span>
-                </div>
-                <div class="flex justify-between text-slate-400">
-                  <span>Heure :</span>
-                  <span id="signedTime" class="text-slate-200">15:08:42</span>
-                </div>
-              </div>
-
-              <button onclick="resetPhoneScreen()" class="text-xs text-emerald-400 hover:underline">
-                Revenir au scanner
-              </button>
-            </div>
-
-            <!-- ÉTAT 3 : ÉCRAN ROUGE DE REJET (Fraude / Expiration) -->
-            <div id="screenError" class="hidden w-full flex flex-col items-center">
-              <div class="w-16 h-16 rounded-full bg-rose-500 text-white flex items-center justify-center text-3xl font-black mb-3 shadow-lg shadow-rose-500/30">
-                ✕
-              </div>
-              <span class="text-[11px] font-bold uppercase tracking-widest text-rose-300 bg-rose-500/20 px-3 py-0.5 rounded-full mb-1">
-                Refus Sécurité
-              </span>
-              <h3 class="text-lg font-bold text-white">Émargement Rejeté</h3>
-              <p id="errorMessage" class="text-xs text-rose-200 mt-2 bg-rose-950/60 p-3 rounded-xl border border-rose-500/30 font-medium">
-                QR Code expiré. La capture d'écran a dépassé la fenêtre de validité.
-              </p>
-
-              <button onclick="resetPhoneScreen()" class="mt-4 px-4 py-2 bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs rounded-xl transition">
-                Réessayer
-              </button>
-            </div>
-
+        <!-- Zone d'affichage du QR Code -->
+        <div class="my-auto p-4 bg-white rounded-3xl shadow-2xl flex flex-col items-center">
+          <div id="qrCanvasContainer" class="w-56 h-56 flex items-center justify-center"></div>
+          <div class="mt-2 text-slate-900 font-mono text-[10px] font-bold">
+            SCANNEZ AVEC VOTRE APPAREIL PHOTO
           </div>
         </div>
 
-        <!-- BOUTONS DE TEST DES SCÉNARIOS ANTI-FRAUDE -->
-        <div class="mt-4 pt-3 border-t border-slate-800 space-y-2">
-          <div class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Scénarios de test anti-fraude :</div>
-          <div class="grid grid-cols-2 gap-2 text-[11px]">
-            <button onclick="testReplayAttack()" class="p-2 bg-slate-950 hover:bg-slate-800 border border-amber-500/40 text-amber-300 rounded-lg font-medium transition text-left">
-              ⚠️ Tester envoi capture WhatsApp (30s)
-            </button>
-            <button onclick="testDoubleSigning()" class="p-2 bg-slate-950 hover:bg-slate-800 border border-rose-500/40 text-rose-300 rounded-lg font-medium transition text-left">
-              🚫 Tester double émargement
+        <!-- Résumé de la session liée -->
+        <div class="w-full mt-4 bg-slate-900/90 border border-slate-700 rounded-2xl p-3 text-left text-xs space-y-1">
+          <div class="text-[11px] font-bold text-emerald-400 truncate" id="summaryMatiere">Algorithmique & Structures de Données</div>
+          <div class="text-slate-300 text-[11px]"><span class="text-slate-500">Cible :</span> <span id="summaryFilierePromo">Informatique - L3</span></div>
+          <div class="text-slate-300 text-[11px]"><span class="text-slate-500">Lieu :</span> <span id="summarySalleHeure">Amphi A (08:30 - 11:30)</span></div>
+          <div class="pt-1.5 border-t border-slate-800 flex justify-between items-center">
+            <span class="text-[10px] text-slate-400">Lien direct :</span>
+            <button onclick="copyDirectLink()" class="text-[10px] text-cyan-400 hover:underline flex items-center gap-1">
+              <i class="fa-solid fa-copy"></i>
+              <span>Copier le lien</span>
             </button>
           </div>
         </div>
@@ -202,274 +292,534 @@
 
     </div>
 
-    <!-- REGISTRE D'ÉMARGEMENT EN DIRECT (PostgreSQL Audit Log) -->
-    <section class="bg-slate-900/90 border border-slate-800 rounded-2xl p-5 shadow-xl">
-      <div class="flex items-center justify-between mb-4">
-        <div class="flex items-center gap-2">
-          <span class="w-3 h-3 rounded-full bg-emerald-500"></span>
-          <h3 class="text-sm font-bold text-white uppercase tracking-wider">Registre d'Émargement (PostgreSQL)</h3>
+    <!-- ========================================================================= -->
+    <!-- SECTION 3 : TABLEAU DE BORD DE SURVEILLANCE & EXPORTS MULTI-FORMATS      -->
+    <!-- ========================================================================= -->
+    <section class="bg-slate-800/80 border border-slate-700/80 rounded-3xl p-6 shadow-xl space-y-4">
+      
+      <!-- Barre d'outils du tableau -->
+      <div class="flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <h2 class="text-lg font-black text-white flex items-center gap-2">
+            <i class="fa-solid fa-clipboard-user text-emerald-400"></i>
+            <span>Registre d'Émargement des Étudiants</span>
+            <span id="badgeTotalSigned" class="text-xs px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+              0 émargés
+            </span>
+          </h2>
+          <p class="text-xs text-slate-400">Mise à jour instantanée dès qu'un étudiant valide son scan</p>
         </div>
-        <div class="text-xs text-slate-400 font-mono">
-          Total émargés : <span id="totalSignedCount" class="text-emerald-400 font-bold">0</span> / 3
+
+        <!-- Boutons d'exportation demandés : Excel, Docs/PDF, JSON -->
+        <div class="flex flex-wrap items-center gap-2">
+          <button onclick="exportToExcel()" 
+            class="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-lg shadow-emerald-600/20 transition flex items-center gap-1.5">
+            <i class="fa-solid fa-file-excel"></i>
+            <span>Exporter en Excel (.xlsx)</span>
+          </button>
+
+          <button onclick="exportToWordDoc()" 
+            class="px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs shadow-lg shadow-blue-600/20 transition flex items-center gap-1.5">
+            <i class="fa-solid fa-file-word"></i>
+            <span>Exporter en Document Word (.doc)</span>
+          </button>
+
+          <button onclick="exportToPrintPdf()" 
+            class="px-3.5 py-2 rounded-xl bg-slate-700 hover:bg-slate-600 text-white font-bold text-xs transition flex items-center gap-1.5">
+            <i class="fa-solid fa-print"></i>
+            <span>Imprimer / PDF</span>
+          </button>
+
+          <button onclick="clearAllAttendances()" 
+            class="px-2.5 py-2 rounded-xl bg-slate-900 hover:bg-rose-950 text-slate-400 hover:text-rose-300 border border-slate-700 text-xs transition" 
+            title="Réinitialiser la liste">
+            <i class="fa-solid fa-trash"></i>
+          </button>
         </div>
       </div>
 
-      <div class="overflow-x-auto">
-        <table class="w-full text-left text-xs font-mono">
-          <thead class="bg-slate-950 text-slate-400 border-b border-slate-800">
+      <!-- Filtre de recherche -->
+      <div class="flex items-center gap-3">
+        <div class="relative flex-1 max-w-md">
+          <span class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-500 text-xs">
+            <i class="fa-solid fa-magnifying-glass"></i>
+          </span>
+          <input type="text" id="searchTableInput" oninput="filterAttendanceTable()" 
+            placeholder="Rechercher par nom, INE, email..." 
+            class="w-full bg-slate-900 border border-slate-700 rounded-xl pl-9 pr-3 py-2 text-xs text-white placeholder:text-slate-600 focus:outline-none focus:border-emerald-500">
+        </div>
+      </div>
+
+      <!-- Zone imprimable / Tableau HTML -->
+      <div id="printableArea" class="overflow-x-auto rounded-2xl border border-slate-700/80 bg-slate-900">
+        <table class="w-full text-left text-xs">
+          <thead class="bg-slate-950 text-slate-400 uppercase tracking-wider font-semibold border-b border-slate-800 text-[11px]">
             <tr>
-              <th class="py-2.5 px-4">Horodatage</th>
-              <th class="py-2.5 px-4">N° Carte</th>
-              <th class="py-2.5 px-4">Étudiant</th>
-              <th class="py-2.5 px-4">Mode</th>
-              <th class="py-2.5 px-4">Empreinte Appareil</th>
-              <th class="py-2.5 px-4">Audit Nonce</th>
+              <th class="py-3 px-4">#</th>
+              <th class="py-3 px-4">Nom et Prénom</th>
+              <th class="py-3 px-4">INE</th>
+              <th class="py-3 px-4">Adresse Institutionnelle</th>
+              <th class="py-3 px-4">Heure d'Entrée</th>
+              <th class="py-3 px-4">Heure de Sortie</th>
+              <th class="py-3 px-4">Table</th>
+              <th class="py-3 px-4">Signature</th>
             </tr>
           </thead>
-          <tbody id="attendanceLogTable" class="divide-y divide-slate-800 text-slate-300">
-            <tr>
-              <td colspan="6" class="py-4 text-center text-slate-500 italic font-sans">
-                Aucun émargement pour l'instant. Utilisez le bouton "Scanner le QR Code Actuel" sur le smartphone.
-              </td>
-            </tr>
+          <tbody id="attendanceTableBody" class="divide-y divide-slate-800 text-slate-300">
+            <!-- Rempli dynamiquement -->
           </tbody>
         </table>
       </div>
-    </section>
+
+    </div>
 
   </div>
 
-  <!-- Script Logique Métier Cryptographique & Rotation TOTP -->
+  <!-- ========================================================================= -->
+  <!-- SCRIPT JS COMPLET : GESTION, STOCKAGE, QR CODE & EXPORTS                  -->
+  <!-- ========================================================================= -->
   <script>
-    // Configuration
-    const SESSION_ID = 'cccccccc-cccc-cccc-cccc-cccccccccccc';
-    const SESSION_SECRET = 'k87f983hfd98h23f9823hfsd98f734hk';
-    const ROTATION_INTERVAL_SEC = 8; // Changement toutes les 8 secondes
-
-    // Étudiants simulés
-    const STUDENTS = {
-      "1": { id: "11111111-1111-1111-1111-111111111111", name: "Thomas Dubois", num: "ETU-001" },
-      "2": { id: "22222222-2222-2222-2222-222222222222", name: "Sarah Benali", num: "ETU-002" },
-      "3": { id: "33333333-3333-3333-3333-333333333333", name: "Lucas Martin", num: "ETU-003" }
+    // Configuration active de l'évaluation
+    let currentEvaluation = {
+      id: "EVAL-" + Date.now(),
+      matiere: "Algorithmique & Structures de Données",
+      filiere: "Informatique (Génie Logiciel)",
+      promo: "Licence 3 (Promo 2024)",
+      salle: "Amphithéâtre A",
+      date: new Date().toISOString().split('T')[0],
+      heureDebut: "08:30",
+      heureFin: "11:30"
     };
 
-    // État serveur simulé (PostgreSQL + Redis)
-    const dbAttendances = []; // Enregistrements PostgreSQL
-    const redisUsedNonces = new Set(); // Nonces déjà consommés
+    // Registre des émargements stocké en mémoire et localStorage
+    let attendancesList = [];
 
-    // Variables de rotation
-    let currentRawToken = '';
-    let currentPayload = null;
-    let oldCapturedToken = null; // Utilisé pour tester l'attaque par capture d'écran WhatsApp
-    let countdown = ROTATION_INTERVAL_SEC;
-    let qrcodeInstance = null;
+    // Canvas de signature
+    let sigCanvas, sigCtx, isDrawing = false;
 
-    // Calcul de signature HMAC-SHA256
-    function computeHmac(sessionId, bucket, nonce, secret) {
-      const message = `${sessionId}:${bucket}:${nonce}`;
-      return CryptoJS.HmacSHA256(message, secret).toString(CryptoJS.enc.Hex);
+    window.addEventListener('DOMContentLoaded', () => {
+      // Pré-remplir la date du jour
+      document.getElementById('cfgDate').value = currentEvaluation.date;
+
+      // Charger les données sauvegardées si existantes
+      const savedConfig = localStorage.getItem('signsafe_config');
+      if (savedConfig) {
+        try {
+          currentEvaluation = JSON.parse(savedConfig);
+          document.getElementById('cfgMatiere').value = currentEvaluation.matiere;
+          document.getElementById('cfgFiliere').value = currentEvaluation.filiere;
+          document.getElementById('cfgPromo').value = currentEvaluation.promo;
+          document.getElementById('cfgSalle').value = currentEvaluation.salle;
+          document.getElementById('cfgDate').value = currentEvaluation.date;
+          document.getElementById('cfgHeureDebut').value = currentEvaluation.heureDebut;
+          document.getElementById('cfgHeureFin').value = currentEvaluation.heureFin;
+        } catch(e) {}
+      }
+
+      const savedAttendances = localStorage.getItem('signsafe_attendances_' + currentEvaluation.id);
+      if (savedAttendances) {
+        try { attendancesList = JSON.parse(savedAttendances); } catch(e) {}
+      } else {
+        // Jeu de démo initial si vide
+        attendancesList = [
+          {
+            id: 1,
+            fullName: "Amadou Diallo",
+            ine: "N019283720211",
+            email: "amadou.diallo@univ.sn",
+            entryTime: "08:24:15",
+            exitTime: "11:15",
+            deskNum: "Table 12",
+            signature: null
+          },
+          {
+            id: 2,
+            fullName: "Fatou Bintou Ndiaye",
+            ine: "N019283720212",
+            email: "fatou.ndiaye@univ.sn",
+            entryTime: "08:28:40",
+            exitTime: "",
+            deskNum: "Table 14",
+            signature: null
+          }
+        ];
+      }
+
+      // Initialiser le canvas de signature
+      initSignatureCanvas();
+
+      // Vérifier si l'URL contient un paramètre de scan étudiant
+      const urlParams = new URLSearchParams(window.location.search);
+      if (urlParams.has('emarger')) {
+        // Mode ÉTUDIANT : ouvrir directement le formulaire d'émargement !
+        const evalData = urlParams.get('eval');
+        if (evalData) {
+          try {
+            currentEvaluation = JSON.parse(decodeURIComponent(escape(atob(evalData))));
+          } catch(e) {}
+        }
+        showStudentFormView();
+      } else {
+        // Mode SURVEILLANT
+        generateCustomQrCode();
+        renderAttendanceTable();
+      }
+    });
+
+    // Basculer vers la vue formulaire étudiant
+    function showStudentFormView() {
+      document.getElementById('supervisorDashboardView').classList.add('hidden');
+      document.getElementById('studentFormView').classList.remove('hidden');
+
+      // Mettre à jour l'en-tête étudiant avec les informations personnalisées
+      document.getElementById('studExamTitle').innerText = currentEvaluation.matiere;
+      document.getElementById('studExamPromo').innerText = currentEvaluation.filiere + ' - ' + currentEvaluation.promo;
+      document.getElementById('studExamSchedule').innerText = currentEvaluation.heureDebut + ' à ' + currentEvaluation.heureFin + ' (' + currentEvaluation.date + ')';
+      document.getElementById('studExamRoom').innerText = currentEvaluation.salle;
     }
 
-    // Génère un nouveau QR Code dynamique
-    function generateNewQr() {
-      const now = Date.now();
-      const bucket = Math.floor(now / (ROTATION_INTERVAL_SEC * 1000));
-      const nonce = Math.random().toString(36).substring(2, 10);
-      const signature = computeHmac(SESSION_ID, bucket, nonce, SESSION_SECRET);
+    function backToSupervisorView() {
+      window.location.href = window.location.pathname; // Recharge sans les query params
+    }
 
-      currentPayload = {
-        sessionId: SESSION_ID,
-        timestamp: now,
-        bucket: bucket,
-        nonce: nonce,
-        signature: signature
+    function testStudentScanSimulation() {
+      showStudentFormView();
+    }
+
+    // Générer le QR Code personnalisé
+    function generateCustomQrCode(event) {
+      if (event) event.preventDefault();
+
+      currentEvaluation = {
+        id: currentEvaluation.id || ("EVAL-" + Date.now()),
+        matiere: document.getElementById('cfgMatiere').value.trim(),
+        filiere: document.getElementById('cfgFiliere').value.trim(),
+        promo: document.getElementById('cfgPromo').value.trim(),
+        salle: document.getElementById('cfgSalle').value.trim(),
+        date: document.getElementById('cfgDate').value,
+        heureDebut: document.getElementById('cfgHeureDebut').value,
+        heureFin: document.getElementById('cfgHeureFin').value
       };
 
-      currentRawToken = btoa(JSON.stringify(currentPayload));
+      localStorage.setItem('signsafe_config', JSON.stringify(currentEvaluation));
 
-      // Mettre à jour l'affichage
-      document.getElementById('currentBucketDisplay').innerText = `#${bucket}`;
-      document.getElementById('rawPayloadPreview').innerText = currentRawToken;
+      // Mettre à jour les résumés visuels
+      document.getElementById('summaryMatiere').innerText = currentEvaluation.matiere;
+      document.getElementById('summaryFilierePromo').innerText = currentEvaluation.filiere + ' - ' + currentEvaluation.promo;
+      document.getElementById('summarySalleHeure').innerText = currentEvaluation.salle + ' (' + currentEvaluation.heureDebut + ' - ' + currentEvaluation.heureFin + ')';
+
+      // Encoder les métadonnées de l'évaluation dans l'URL pour que le smartphone sache de quelle épreuve il s'agit
+      const encodedData = btoa(unescape(encodeURIComponent(JSON.stringify(currentEvaluation))));
+      const baseUrl = window.location.origin + window.location.pathname;
+      const targetUrl = baseUrl + '?emarger=1&eval=' + encodedData;
 
       // Dessiner le QR Code
-      const qrContainer = document.getElementById('qrcode');
+      const qrContainer = document.getElementById('qrCanvasContainer');
       qrContainer.innerHTML = '';
-      qrcodeInstance = new QRCode(qrContainer, {
-        text: currentRawToken,
-        width: 256,
-        height: 256,
+      new QRCode(qrContainer, {
+        text: targetUrl,
+        width: 220,
+        height: 220,
         colorDark: "#0f172a",
         colorLight: "#ffffff",
         correctLevel: QRCode.CorrectLevel.M
       });
-
-      // Stocker l'ancien token pour tester l'attaque différée après 2 rotations
-      if (!oldCapturedToken && bucket % 2 === 0) {
-        oldCapturedToken = currentRawToken;
-      }
     }
 
-    // Boucle de décompte toutes les 100ms
-    setInterval(() => {
-      countdown -= 0.1;
-      if (countdown <= 0) {
-        countdown = ROTATION_INTERVAL_SEC;
-        generateNewQr();
-      }
-      document.getElementById('countdownText').innerText = `${Math.max(0, countdown).toFixed(1)}s`;
-      const progressPercent = (countdown / ROTATION_INTERVAL_SEC) * 100;
-      document.getElementById('progressBar').style.width = `${progressPercent}%`;
-    }, 100);
-
-    // Initialisation au chargement
-    generateNewQr();
-
-    // Fonction de vérification du serveur (Simule le backend Node.js + Redis + PostgreSQL)
-    function verifyAndRecordAttendance(rawToken, studentId, deviceFp) {
-      try {
-        const decoded = JSON.parse(atob(rawToken));
-        const currentBucket = Math.floor(Date.now() / (ROTATION_INTERVAL_SEC * 1000));
-
-        // 1. Contrôle de la fenêtre de validité (Tolérance ±1 bucket = ±8s)
-        if (Math.abs(currentBucket - decoded.bucket) > 1) {
-          return {
-            valid: false,
-            reason: `QR Code expiré (Jeton #${decoded.bucket} alors que le serveur est à #${currentBucket}). Les captures d'écran transmises sont refusées.`
-          };
-        }
-
-        // 2. Contrôle d'authenticité cryptographique HMAC
-        const expectedSig = computeHmac(decoded.sessionId, decoded.bucket, decoded.nonce, SESSION_SECRET);
-        if (expectedSig !== decoded.signature) {
-          return { valid: false, reason: "Signature cryptographique invalide (QR contrefait)." };
-        }
-
-        // 3. Contrôle anti-rejeu Redis
-        if (redisUsedNonces.has(decoded.nonce)) {
-          return { valid: false, reason: "Jeton dynamique déjà consommé (Tentative de rejeu interceptée)." };
-        }
-
-        // 4. Contrôle contrainte UNIQUE PostgreSQL (session_id, student_id)
-        const alreadySigned = dbAttendances.some(a => a.studentId === studentId);
-        if (alreadySigned) {
-          return { valid: false, reason: "Double émargement rejeté : Cet étudiant a déjà émargé pour cette épreuve." };
-        }
-
-        // Succès ! Consommation dans Redis et insertion PostgreSQL
-        redisUsedNonces.add(decoded.nonce);
-        const signedAt = new Date();
-        dbAttendances.push({
-          studentId: studentId,
-          signedAt: signedAt,
-          deviceFp: deviceFp,
-          nonce: decoded.nonce
-        });
-
-        return { valid: true, signedAt: signedAt, nonce: decoded.nonce };
-      } catch (e) {
-        return { valid: false, reason: "Format de jeton illisible." };
-      }
-    }
-
-    // Action : Scan étudiant en direct
-    function simulateScan() {
-      const studentKey = document.getElementById('studentSelect').value;
-      const student = STUDENTS[studentKey];
-      const result = verifyAndRecordAttendance(currentRawToken, student.id, "SMARTPHONE_FINGERPRINT_A9");
-
-      if (result.valid) {
-        showSuccessScreen(student, result.signedAt);
-        updateAttendanceLogTable();
-      } else {
-        showErrorScreen(result.reason);
-      }
-    }
-
-    // Scénario Anti-Fraude 1 : Capture WhatsApp d'il y a 30 secondes
-    function testReplayAttack() {
-      const studentKey = document.getElementById('studentSelect').value;
-      const student = STUDENTS[studentKey];
-      
-      // Fabrique un jeton artificiellement vieux (de 4 buckets en arrière = ~32 secondes)
-      const oldBucket = Math.floor(Date.now() / (ROTATION_INTERVAL_SEC * 1000)) - 4;
-      const oldNonce = "old_nonce_whatsapp";
-      const oldSig = computeHmac(SESSION_ID, oldBucket, oldNonce, SESSION_SECRET);
-      const expiredPayload = {
-        sessionId: SESSION_ID,
-        timestamp: Date.now() - 32000,
-        bucket: oldBucket,
-        nonce: oldNonce,
-        signature: oldSig
-      };
-      const expiredRawToken = btoa(JSON.stringify(expiredPayload));
-
-      const result = verifyAndRecordAttendance(expiredRawToken, student.id, "SMARTPHONE_FINGERPRINT_A9");
-      if (!result.valid) {
-        showErrorScreen(result.reason);
-      }
-    }
-
-    // Scénario Anti-Fraude 2 : Double émargement du même étudiant
-    function testDoubleSigning() {
-      const studentKey = document.getElementById('studentSelect').value;
-      const student = STUDENTS[studentKey];
-
-      // Tente d'émarger une 2ème fois
-      const result = verifyAndRecordAttendance(currentRawToken, student.id, "SMARTPHONE_FINGERPRINT_A9");
-      if (!result.valid) {
-        showErrorScreen(result.reason);
-      } else {
-        showSuccessScreen(student, result.signedAt);
-        updateAttendanceLogTable();
-      }
-    }
-
-    // Gestion de l'affichage du smartphone
-    function showSuccessScreen(student, date) {
-      document.getElementById('screenScanner').classList.add('hidden');
-      document.getElementById('screenError').classList.add('hidden');
-      document.getElementById('screenSuccess').classList.remove('hidden');
-
-      document.getElementById('signedStudentName').innerText = student.name;
-      document.getElementById('signedStudentNum').innerText = student.num;
-      document.getElementById('signedTime').innerText = date.toLocaleTimeString('fr-FR');
-    }
-
-    function showErrorScreen(msg) {
-      document.getElementById('screenScanner').classList.add('hidden');
-      document.getElementById('screenSuccess').classList.add('hidden');
-      document.getElementById('screenError').classList.remove('hidden');
-      document.getElementById('errorMessage').innerText = msg;
-    }
-
-    function resetPhoneScreen() {
-      document.getElementById('screenSuccess').classList.add('hidden');
-      document.getElementById('screenError').classList.add('hidden');
-      document.getElementById('screenScanner').classList.remove('hidden');
-    }
-
-    // Mise à jour de la table SQL
-    function updateAttendanceLogTable() {
-      const tbody = document.getElementById('attendanceLogTable');
-      document.getElementById('totalSignedCount').innerText = dbAttendances.length;
-
-      if (dbAttendances.length === 0) return;
-
-      tbody.innerHTML = '';
-      dbAttendances.forEach(att => {
-        const student = Object.values(STUDENTS).find(s => s.id === att.studentId);
-        const tr = document.createElement('tr');
-        tr.className = 'hover:bg-slate-800/40 transition';
-        tr.innerHTML = `
-          <td class="py-2.5 px-4 text-slate-400">${att.signedAt.toLocaleTimeString('fr-FR')}</td>
-          <td class="py-2.5 px-4 font-bold text-emerald-400">${student.num}</td>
-          <td class="py-2.5 px-4 text-white font-medium">${student.name}</td>
-          <td class="py-2.5 px-4"><span class="px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[10px]">QR_DYNAMIC</span></td>
-          <td class="py-2.5 px-4 text-slate-500 text-[10px]">${att.deviceFp}</td>
-          <td class="py-2.5 px-4 font-mono text-cyan-400 text-[10px]">${att.nonce}</td>
-        `;
-        tbody.prepend(tr);
+    function copyDirectLink() {
+      const encodedData = btoa(unescape(encodeURIComponent(JSON.stringify(currentEvaluation))));
+      const targetUrl = window.location.origin + window.location.pathname + '?emarger=1&eval=' + encodedData;
+      navigator.clipboard.writeText(targetUrl).then(() => {
+        alert("Lien direct d'émargement copié dans le presse-papier !\n\nVous pouvez l'envoyer ou le tester directement.");
       });
+    }
+
+    function printQrPoster() {
+      window.print();
+    }
+
+    // Gestion de la signature tactile
+    function initSignatureCanvas() {
+      sigCanvas = document.getElementById('signatureCanvas');
+      if (!sigCanvas) return;
+      sigCtx = sigCanvas.getContext('2d');
+      sigCtx.strokeStyle = "#0f172a";
+      sigCtx.lineWidth = 2.5;
+      sigCtx.lineCap = "round";
+
+      const getPos = (e) => {
+        const rect = sigCanvas.getBoundingClientRect();
+        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+        const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+        return {
+          x: (clientX - rect.left) * (sigCanvas.width / rect.width),
+          y: (clientY - rect.top) * (sigCanvas.height / rect.height)
+        };
+      };
+
+      const startDrawing = (e) => {
+        isDrawing = true;
+        const pos = getPos(e);
+        sigCtx.beginPath();
+        sigCtx.moveTo(pos.x, pos.y);
+        e.preventDefault();
+      };
+
+      const draw = (e) => {
+        if (!isDrawing) return;
+        const pos = getPos(e);
+        sigCtx.lineTo(pos.x, pos.y);
+        sigCtx.stroke();
+        e.preventDefault();
+      };
+
+      const stopDrawing = () => { isDrawing = false; };
+
+      sigCanvas.addEventListener('mousedown', startDrawing);
+      sigCanvas.addEventListener('mousemove', draw);
+      window.addEventListener('mouseup', stopDrawing);
+
+      sigCanvas.addEventListener('touchstart', startDrawing, { passive: false });
+      sigCanvas.addEventListener('touchmove', draw, { passive: false });
+      window.addEventListener('touchend', stopDrawing);
+    }
+
+    function clearSignatureCanvas() {
+      if (sigCtx && sigCanvas) {
+        sigCtx.clearRect(0, 0, sigCanvas.width, sigCanvas.height);
+      }
+    }
+
+    // Soumission du formulaire par l'étudiant
+    function submitStudentAttendance(event) {
+      event.preventDefault();
+
+      const fullName = document.getElementById('studFullName').value.trim();
+      const ine = document.getElementById('studINE').value.trim();
+      const email = document.getElementById('studEmail').value.trim();
+      const exitTime = document.getElementById('studExitTime').value;
+      const deskNum = document.getElementById('studDeskNum').value.trim();
+      const signatureData = sigCanvas ? sigCanvas.toDataURL() : null;
+
+      const now = new Date();
+      const entryTime = now.toLocaleTimeString('fr-FR');
+
+      // Récupérer le registre actuel
+      let list = [];
+      const saved = localStorage.getItem('signsafe_attendances_' + currentEvaluation.id);
+      if (saved) {
+        try { list = JSON.parse(saved); } catch(e) {}
+      }
+
+      // Vérifier le double émargement par INE
+      const exists = list.some(a => a.ine.toLowerCase() === ine.toLowerCase());
+      if (exists) {
+        alert("Attention : Cet INE (" + ine + ") a déjà émargé pour cette évaluation !");
+        return;
+      }
+
+      const newRecord = {
+        id: Date.now(),
+        fullName,
+        ine,
+        email,
+        entryTime,
+        exitTime: exitTime || "--:--",
+        deskNum: deskNum || "N/A",
+        signature: signatureData
+      };
+
+      list.push(newRecord);
+      localStorage.setItem('signsafe_attendances_' + currentEvaluation.id, JSON.stringify(list));
+
+      // Afficher l'écran vert de confirmation
+      document.getElementById('attendanceForm').classList.add('hidden');
+      document.getElementById('studentSuccessBox').classList.remove('hidden');
+
+      document.getElementById('confName').innerText = fullName;
+      document.getElementById('confINE').innerText = ine;
+      document.getElementById('confTime').innerText = entryTime;
+    }
+
+    // Affichage du tableau côté surveillant
+    function renderAttendanceTable(dataToRender) {
+      const list = dataToRender || attendancesList;
+      const tbody = document.getElementById('attendanceTableBody');
+      const badge = document.getElementById('badgeTotalSigned');
+      if (badge) badge.innerText = list.length + " émargé" + (list.length > 1 ? "s" : "");
+
+      if (!tbody) return;
+      tbody.innerHTML = '';
+
+      if (list.length === 0) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="8" class="py-8 text-center text-slate-500 italic">
+              Aucun émargement pour l'instant. Les étudiants apparaîtront dès qu'ils scanneront le QR Code.
+            </td>
+          </tr>
+        `;
+        return;
+      }
+
+      list.forEach((item, index) => {
+        const tr = document.createElement('tr');
+        tr.className = "hover:bg-slate-800/50 transition";
+        tr.innerHTML = `
+          <td class="py-3 px-4 font-mono text-slate-500">${index + 1}</td>
+          <td class="py-3 px-4 font-bold text-white">${escapeHtml(item.fullName)}</td>
+          <td class="py-3 px-4 font-mono text-emerald-400 font-semibold">${escapeHtml(item.ine)}</td>
+          <td class="py-3 px-4 text-slate-300">${escapeHtml(item.email)}</td>
+          <td class="py-3 px-4 font-mono text-slate-200">${escapeHtml(item.entryTime)}</td>
+          <td class="py-3 px-4 font-mono text-slate-400">${escapeHtml(item.exitTime || '--:--')}</td>
+          <td class="py-3 px-4 text-slate-300">${escapeHtml(item.deskNum || 'N/A')}</td>
+          <td class="py-3 px-4">
+            ${item.signature ? `<img src="${item.signature}" class="h-6 max-w-[70px] bg-white rounded p-0.5 object-contain" alt="Sig" />` : `<span class="text-emerald-400 font-semibold">✓ Validé</span>`}
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function filterAttendanceTable() {
+      const query = document.getElementById('searchTableInput').value.toLowerCase().trim();
+      if (!query) {
+        renderAttendanceTable(attendancesList);
+        return;
+      }
+      const filtered = attendancesList.filter(a => 
+        a.fullName.toLowerCase().includes(query) ||
+        a.ine.toLowerCase().includes(query) ||
+        a.email.toLowerCase().includes(query)
+      );
+      renderAttendanceTable(filtered);
+    }
+
+    function clearAllAttendances() {
+      if (confirm("Voulez-vous réinitialiser la liste d'émargement de cette session ?")) {
+        attendancesList = [];
+        localStorage.removeItem('signsafe_attendances_' + currentEvaluation.id);
+        renderAttendanceTable();
+      }
+    }
+
+    // =========================================================================
+    // EXPORTATIONS DEMANDÉES : EXCEL (.xlsx), WORD (.doc), IMPRESSION / PDF
+    // =========================================================================
+
+    // 1. Export Excel (.xlsx)
+    function exportToExcel() {
+      if (attendancesList.length === 0) {
+        alert("La liste d'émargement est vide. Rien à exporter.");
+        return;
+      }
+
+      const rows = attendancesList.map((a, i) => ({
+        "N°": i + 1,
+        "Nom et Prénom": a.fullName,
+        "Numéro INE": a.ine,
+        "Email Institutionnel": a.email,
+        "Heure d'entrée": a.entryTime,
+        "Heure de sortie": a.exitTime || "",
+        "N° Table": a.deskNum || "",
+        "Matière": currentEvaluation.matiere,
+        "Filière": currentEvaluation.filiere,
+        "Promotion": currentEvaluation.promo,
+        "Salle": currentEvaluation.salle,
+        "Date": currentEvaluation.date
+      }));
+
+      const worksheet = XLSX.utils.json_to_sheet(rows);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Émargements");
+
+      const fileName = "Emargement_" + sanitizeFilename(currentEvaluation.matiere) + "_" + currentEvaluation.date + ".xlsx";
+      XLSX.writeFile(workbook, fileName);
+    }
+
+    // 2. Export Word Document (.doc)
+    function exportToWordDoc() {
+      if (attendancesList.length === 0) {
+        alert("La liste d'émargement est vide. Rien à exporter.");
+        return;
+      }
+
+      let tableHtml = `
+        <table border="1" style="border-collapse:collapse; width:100%; font-family:Arial, sans-serif; font-size:12px;">
+          <tr style="background-color:#f2f2f2; font-weight:bold;">
+            <th style="padding:8px;">N°</th>
+            <th style="padding:8px;">Nom et Prénom</th>
+            <th style="padding:8px;">INE</th>
+            <th style="padding:8px;">Email Institutionnel</th>
+            <th style="padding:8px;">Heure Entrée</th>
+            <th style="padding:8px;">Heure Sortie</th>
+            <th style="padding:8px;">Table</th>
+            <th style="padding:8px;">Statut</th>
+          </tr>
+      `;
+
+      attendancesList.forEach((a, i) => {
+        tableHtml += `
+          <tr>
+            <td style="padding:6px; text-align:center;">${i + 1}</td>
+            <td style="padding:6px; font-weight:bold;">${escapeHtml(a.fullName)}</td>
+            <td style="padding:6px;">${escapeHtml(a.ine)}</td>
+            <td style="padding:6px;">${escapeHtml(a.email)}</td>
+            <td style="padding:6px; text-align:center;">${escapeHtml(a.entryTime)}</td>
+            <td style="padding:6px; text-align:center;">${escapeHtml(a.exitTime || '--')}</td>
+            <td style="padding:6px; text-align:center;">${escapeHtml(a.deskNum || 'N/A')}</td>
+            <td style="padding:6px; text-align:center; color:green;">Présent</td>
+          </tr>
+        `;
+      });
+      tableHtml += `</table>`;
+
+      const docContent = `
+        <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
+        <head><meta charset='utf-8'><title>Feuille d'émargement</title></head>
+        <body style="font-family:Arial, sans-serif; padding:20px;">
+          <h2 style="text-align:center; margin-bottom:5px;">PROCÈS-VERBAL D'ÉMARGEMENT</h2>
+          <p style="text-align:center; color:#555; margin-top:0;">Évaluation Universitaire</p>
+          <hr/>
+          <table style="width:100%; margin-bottom:20px; font-size:13px;">
+            <tr><td><strong>Matière :</strong> ${escapeHtml(currentEvaluation.matiere)}</td><td><strong>Date :</strong> ${escapeHtml(currentEvaluation.date)}</td></tr>
+            <tr><td><strong>Filière :</strong> ${escapeHtml(currentEvaluation.filiere)}</td><td><strong>Horaire :</strong> ${escapeHtml(currentEvaluation.heureDebut)} - ${escapeHtml(currentEvaluation.heureFin)}</td></tr>
+            <tr><td><strong>Promotion :</strong> ${escapeHtml(currentEvaluation.promo)}</td><td><strong>Salle :</strong> ${escapeHtml(currentEvaluation.salle)}</td></tr>
+            <tr><td><strong>Nombre d'émargés :</strong> ${attendancesList.length} étudiant(s)</td><td><strong>Surveillant :</strong> Validé</td></tr>
+          </table>
+          ${tableHtml}
+        </body>
+        </html>
+      `;
+
+      const blob = new Blob(['\ufeff' + docContent], { type: 'application/msword' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = "Emargement_" + sanitizeFilename(currentEvaluation.matiere) + "_" + currentEvaluation.date + ".doc";
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    }
+
+    // 3. Impression / Export PDF
+    function exportToPrintPdf() {
+      window.print();
+    }
+
+    function escapeHtml(str) {
+      if (!str) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+
+    function sanitizeFilename(str) {
+      return (str || 'evaluation').replace(/[^a-zA-Z0-9_-]/g, '_');
     }
   </script>
 </body>

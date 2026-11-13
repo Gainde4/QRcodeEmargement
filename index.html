@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Système d'Émargement d'Évaluations - UN-CHK (ENO)</title>
+  <title>Système d'Émargement d'Évaluations - UN-CHK (Réseau des ENO)</title>
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
   <!-- QR Code Generator -->
@@ -32,27 +32,53 @@
       <div class="text-center mb-5 border-b border-slate-800 pb-4">
         <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 text-xs font-semibold mb-2">
           <i class="fa-solid fa-graduation-cap"></i>
-          <span>Université Numérique Cheikh Hamidou Kane</span>
+          <span>Université Numérique Cheikh Hamidou Kane (UN-CHK)</span>
         </div>
         <h1 class="text-xl font-black text-white">Feuille d'Émargement Électronique</h1>
-        <p class="text-xs text-slate-400 mt-1">Espace Numérique Ouvert (ENO) • Session d'Évaluation</p>
+        <p class="text-xs text-slate-400 mt-1">Plateforme Nationale d'Évaluation des Espaces Numériques Ouverts (ENO)</p>
       </div>
 
-      <!-- Informations sur la séance / ENO & Date -->
-      <div class="bg-slate-950/90 border border-slate-800 rounded-2xl p-3.5 mb-5 text-xs space-y-1 font-mono">
-        <div class="flex justify-between">
-          <span class="text-slate-500">Lieu :</span>
-          <span id="studSessionEno" class="text-white font-bold">ENO Dakar / Amphi</span>
-        </div>
-        <div class="flex justify-between">
-          <span class="text-slate-500">Date de session :</span>
-          <span id="studSessionDate" class="text-emerald-400 font-bold">Lundi 16 novembre 2026</span>
-        </div>
+      <!-- Informations sur la date de session -->
+      <div class="bg-slate-950/90 border border-slate-800 rounded-2xl p-3.5 mb-5 text-xs flex justify-between items-center font-mono">
+        <span class="text-slate-500">Date de session :</span>
+        <span id="studSessionDate" class="text-emerald-400 font-bold">16 novembre 2026</span>
       </div>
 
       <!-- Formulaire d'émargement étudiant -->
       <form id="attendanceForm" onsubmit="submitStudentAttendance(event)" class="space-y-4 text-xs">
         
+        <!-- CHOIX DE L'ENO PAR L'ÉTUDIANT (OÙ IL SE TROUVE ACTUELLEMENT AU SÉNÉGAL) -->
+        <div>
+          <label class="block text-cyan-400 font-bold mb-1.5 flex items-center gap-1.5">
+            <i class="fa-solid fa-location-dot"></i>
+            <span>Votre Espace Numérique Ouvert (ENO de composition) *</span>
+          </label>
+          <select id="studEnoSelect" required 
+            class="w-full bg-slate-950 border-2 border-cyan-500/50 rounded-xl px-3 py-2.5 text-white font-medium focus:outline-none focus:border-cyan-400 text-xs">
+            <option value="">Sélectionnez votre ENO de rattachement / composition...</option>
+            <option value="ENO Dakar (Mermoz / Siège)">ENO Dakar (Mermoz / Siège)</option>
+            <option value="ENO Guédiawaye">ENO Guédiawaye</option>
+            <option value="ENO Pikine">ENO Pikine</option>
+            <option value="ENO Rufisque">ENO Rufisque</option>
+            <option value="ENO Thiès">ENO Thiès</option>
+            <option value="ENO Mbour">ENO Mbour</option>
+            <option value="ENO Tivaouane">ENO Tivaouane</option>
+            <option value="ENO Saint-Louis">ENO Saint-Louis</option>
+            <option value="ENO Kaolack">ENO Kaolack</option>
+            <option value="ENO Ziguinchor">ENO Ziguinchor</option>
+            <option value="ENO Diourbel">ENO Diourbel</option>
+            <option value="ENO Fatick">ENO Fatick</option>
+            <option value="ENO Kolda">ENO Kolda</option>
+            <option value="ENO Louga">ENO Louga</option>
+            <option value="ENO Matam">ENO Matam</option>
+            <option value="ENO Tambacounda">ENO Tambacounda</option>
+            <option value="ENO Kédougou">ENO Kédougou</option>
+            <option value="ENO Sédhiou">ENO Sédhiou</option>
+            <option value="ENO Kaffrine">ENO Kaffrine</option>
+          </select>
+          <p class="text-[10px] text-slate-500 mt-1">Indiquez l'ENO régional dans lequel vous composez aujourd'hui.</p>
+        </div>
+
         <!-- SÉLECTION DE LA FILIÈRE / PROMO -->
         <div>
           <label class="block text-emerald-400 font-bold mb-1 flex items-center gap-1.5">
@@ -65,7 +91,7 @@
           </select>
         </div>
 
-        <!-- SÉLECTION DES MATIÈRES (CASES À COCHER : MULTI-MATIÈRES DANS LA PLAGE HORAIRE) -->
+        <!-- SÉLECTION DES MATIÈRES DE LA SESSION (CASES À COCHER) -->
         <div class="bg-slate-950/60 border border-slate-800 rounded-2xl p-3.5 space-y-2">
           <div class="flex justify-between items-center">
             <label class="block text-slate-200 font-bold flex items-center gap-1.5">
@@ -75,7 +101,7 @@
             <span class="text-[10px] text-slate-400">Cochez 1 ou plusieurs</span>
           </div>
           <p class="text-[11px] text-slate-400 italic">
-            Conformément au règlement, vous pouvez composer sur une ou plusieurs matières lors de cette session.
+            Conformément au règlement, cochez les matières sur lesquelles vous composez lors de cette session.
           </p>
           <div id="studSubjectsCheckboxContainer" class="space-y-2 pt-1">
             <!-- Cases à cocher des matières générées dynamiquement -->
@@ -117,7 +143,7 @@
         </div>
 
         <div>
-          <label class="block text-slate-300 font-semibold mb-1">Heure de sortie prévue ou effective (facultatif)</label>
+          <label class="block text-slate-300 font-semibold mb-1">Heure de sortie effective (facultatif)</label>
           <div class="relative">
             <span class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-500">
               <i class="fa-solid fa-clock"></i>
@@ -153,12 +179,13 @@
         <span class="px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-300 font-bold text-xs uppercase tracking-wider">
           Émargement Validé
         </span>
-        <h2 class="text-xl font-bold text-white mt-2">Présence enregistrée à l'ENO !</h2>
-        <p class="text-xs text-slate-400 mt-1">Votre signature et vos matières ont été transmises au surveillant.</p>
+        <h2 class="text-xl font-bold text-white mt-2">Présence enregistrée !</h2>
+        <p class="text-xs text-slate-400 mt-1">Votre signature et vos matières ont été transmises avec succès.</p>
         
         <div class="mt-6 p-4 bg-slate-950 rounded-2xl border border-slate-800 text-left text-xs space-y-2 font-mono">
           <div><span class="text-slate-500">Étudiant :</span> <span id="confName" class="text-white font-bold"></span></div>
           <div><span class="text-slate-500">INE :</span> <span id="confINE" class="text-emerald-400"></span></div>
+          <div><span class="text-slate-500">ENO :</span> <span id="confEno" class="text-amber-400 font-sans"></span></div>
           <div><span class="text-slate-500">Matière(s) :</span> <span id="confMatiere" class="text-cyan-400 font-sans"></span></div>
           <div><span class="text-slate-500">Horodatage :</span> <span id="confTime" class="text-slate-300"></span></div>
         </div>
@@ -224,18 +251,18 @@
           <div class="flex items-center justify-between border-b border-slate-700 pb-3 mb-4">
             <h2 class="text-base font-bold text-white flex items-center gap-2">
               <i class="fa-solid fa-calendar-check text-emerald-400"></i>
-              <span>Évaluations programmées ce jour</span>
+              <span>Sessions d'évaluation du jour</span>
               <span id="badgeExamsCount" class="text-xs px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 font-mono">0</span>
             </h2>
             <button onclick="openAddExamModal()" 
               class="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs transition flex items-center gap-1.5 shadow-md shadow-emerald-600/20">
               <i class="fa-solid fa-plus"></i>
-              <span>Ajouter une séance</span>
+              <span>Ajouter une séance d'examen</span>
             </button>
           </div>
 
           <p class="text-xs text-slate-400 mb-3">
-            Toutes les filières présentes dans la salle scannent <strong>le QR Code unique</strong>. L'étudiant peut cocher les matières qu'il compose.
+            Toutes les filières et tous les ENO scannent <strong>le QR Code unique</strong>. Chaque étudiant choisit son ENO et coche ses matières.
           </p>
 
           <!-- Liste des cartes de séances de la journée -->
@@ -246,7 +273,7 @@
 
         <div class="pt-3 border-t border-slate-700/80 flex items-center justify-between text-[11px] text-slate-400">
           <span><i class="fa-solid fa-shield-halved text-emerald-400 mr-1"></i>Vérification d'INE anti-doublon activée.</span>
-          <span class="text-cyan-400 font-semibold">Historique persistant des jours</span>
+          <span class="text-cyan-400 font-semibold">Historique persistant des dates</span>
         </div>
       </section>
 
@@ -307,7 +334,7 @@
               0 émargés
             </span>
           </h2>
-          <p class="text-xs text-slate-400">Exportation personnalisée par filière et promotion au format officiel</p>
+          <p class="text-xs text-slate-400">Exportation personnalisée par filière, promotion et ENO au format officiel</p>
         </div>
 
         <!-- Filtre de filière pour export personnalisé -->
@@ -317,6 +344,34 @@
             class="bg-slate-900 border border-slate-700 text-xs text-white rounded-xl px-3 py-2 outline-none font-semibold">
             <option value="ALL">Toutes les filières</option>
             <!-- Rempli dynamiquement -->
+          </select>
+        </div>
+
+        <!-- Filtre par ENO pour le surveillant régional -->
+        <div class="flex items-center gap-2">
+          <span class="text-xs text-slate-400">ENO :</span>
+          <select id="filterEnoSelect" onchange="onFiliereFilterChange()" 
+            class="bg-slate-900 border border-slate-700 text-xs text-white rounded-xl px-3 py-2 outline-none font-semibold">
+            <option value="ALL">Tous les ENO</option>
+            <option value="ENO Dakar (Mermoz / Siège)">ENO Dakar (Mermoz / Siège)</option>
+            <option value="ENO Guédiawaye">ENO Guédiawaye</option>
+            <option value="ENO Pikine">ENO Pikine</option>
+            <option value="ENO Rufisque">ENO Rufisque</option>
+            <option value="ENO Thiès">ENO Thiès</option>
+            <option value="ENO Mbour">ENO Mbour</option>
+            <option value="ENO Tivaouane">ENO Tivaouane</option>
+            <option value="ENO Saint-Louis">ENO Saint-Louis</option>
+            <option value="ENO Kaolack">ENO Kaolack</option>
+            <option value="ENO Ziguinchor">ENO Ziguinchor</option>
+            <option value="ENO Diourbel">ENO Diourbel</option>
+            <option value="ENO Fatick">ENO Fatick</option>
+            <option value="ENO Kolda">ENO Kolda</option>
+            <option value="ENO Louga">ENO Louga</option>
+            <option value="ENO Matam">ENO Matam</option>
+            <option value="ENO Tambacounda">ENO Tambacounda</option>
+            <option value="ENO Kédougou">ENO Kédougou</option>
+            <option value="ENO Sédhiou">ENO Sédhiou</option>
+            <option value="ENO Kaffrine">ENO Kaffrine</option>
           </select>
         </div>
 
@@ -355,7 +410,7 @@
             <i class="fa-solid fa-magnifying-glass"></i>
           </span>
           <input type="text" id="searchTableInput" oninput="filterAttendanceTable()" 
-            placeholder="Rechercher par nom, INE, email institutionnel, matière..." 
+            placeholder="Rechercher par nom, INE, email institutionnel, ENO, matière..." 
             class="w-full bg-slate-900 border border-slate-700 rounded-xl pl-9 pr-3 py-2 text-xs text-white placeholder:text-slate-600 focus:outline-none focus:border-emerald-500">
         </div>
       </div>
@@ -368,11 +423,12 @@
               <th class="py-3 px-4">#</th>
               <th class="py-3 px-4">Nom et Prénom</th>
               <th class="py-3 px-4">Numéro INE</th>
+              <th class="py-3 px-4">ENO de Composition</th>
               <th class="py-3 px-4">Filière / Promotion</th>
               <th class="py-3 px-4">Matières Composées</th>
               <th class="py-3 px-4">Email (@unchk.sn)</th>
-              <th class="py-3 px-4">Entrée</th>
-              <th class="py-3 px-4">Sortie</th>
+              <th class="py-3 px-4">Heure Entrée</th>
+              <th class="py-3 px-4">Heure Sortie</th>
               <th class="py-3 px-4">Signature</th>
             </tr>
           </thead>
@@ -387,7 +443,7 @@
   </div>
 
   <!-- ========================================================================= -->
-  <!-- MODAL : AJOUTER UNE SÉANCE D'ÉVALUATION MULTI-MATIÈRES                     -->
+  <!-- MODAL : AJOUTER UNE SÉANCE D'ÉVALUATION (AVEC SESSION & DATE)             -->
   <!-- ========================================================================= -->
   <div id="addExamModal" class="hidden fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
     <div class="bg-slate-900 border border-slate-700 rounded-3xl p-6 sm:p-8 max-w-lg w-full shadow-2xl relative">
@@ -409,35 +465,36 @@
               class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-emerald-500">
           </div>
           <div>
-            <label class="block text-slate-300 font-semibold mb-1">Promotion & Semestre *</label>
-            <input type="text" id="mAddPromo" required placeholder="Ex: Licence 2 - Promo 11 (S3)" 
+            <label class="block text-slate-300 font-semibold mb-1">Promotion *</label>
+            <input type="text" id="mAddPromo" required placeholder="Ex: Licence 2 - Promo 11" 
               class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-emerald-500">
           </div>
         </div>
 
         <div>
+          <label class="block text-slate-300 font-semibold mb-1">Session *</label>
+          <input type="text" id="mAddSession" required placeholder="Ex: Semestre 3 – 2ème session (Rattrapage)" 
+            class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-emerald-500">
+        </div>
+
+        <div>
           <label class="block text-slate-300 font-semibold mb-1">
-            Matières / Épreuves programmées dans cette plage horaire *
+            Matières / Épreuves concernées *
           </label>
           <p class="text-[10px] text-slate-400 mb-1">Séparez les matières par des virgules pour permettre aux étudiants de les cocher</p>
           <textarea id="mAddMatieres" required rows="2" placeholder="Ex: Fondamentaux de la communication, Dessin assisté par ordinateur (DAO), Développement web 3 (PHP/Mysql)" 
             class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-emerald-500 resize-none"></textarea>
         </div>
 
-        <div class="grid grid-cols-3 gap-3">
+        <div class="grid grid-cols-2 gap-3">
           <div>
-            <label class="block text-slate-300 font-semibold mb-1">Lieu / ENO *</label>
-            <input type="text" id="mAddSalle" required value="ENO" 
+            <label class="block text-slate-300 font-semibold mb-1">Date de début *</label>
+            <input type="date" id="mAddDateDebut" required 
               class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-emerald-500">
           </div>
           <div>
-            <label class="block text-slate-300 font-semibold mb-1">Début *</label>
-            <input type="time" id="mAddHeureDebut" required value="14:30" 
-              class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-emerald-500">
-          </div>
-          <div>
-            <label class="block text-slate-300 font-semibold mb-1">Fin *</label>
-            <input type="time" id="mAddHeureFin" required value="17:15" 
+            <label class="block text-slate-300 font-semibold mb-1">Date de fin *</label>
+            <input type="date" id="mAddDateFin" required 
               class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-emerald-500">
           </div>
         </div>
@@ -457,7 +514,7 @@
   </div>
 
   <!-- ========================================================================= -->
-  <!-- SCRIPT JS COMPLET : CALENDRIER UN-CHK, QR UNIQUE & EXPORTS DÉTAILLÉS     -->
+  <!-- SCRIPT JS COMPLET : GESTION DES ENO, DATES, SESSIONS & EXPORTS            -->
   <!-- ========================================================================= -->
   <script>
     // Date sélectionnée (par défaut 2026-11-16 pour correspondre au calendrier officiel UN-CHK)
@@ -473,6 +530,8 @@
     window.addEventListener('DOMContentLoaded', () => {
       // 1. Initialiser la date sélectionnée
       document.getElementById('selectedDateInput').value = selectedDate;
+      document.getElementById('mAddDateDebut').value = selectedDate;
+      document.getElementById('mAddDateFin').value = selectedDate;
 
       // 2. Charger les données persistantes ou initialiser le calendrier officiel UN-CHK
       loadPersistedData();
@@ -493,12 +552,12 @@
 
     // Chargement ou initialisation automatique avec le calendrier officiel Promo 11 MIC
     function loadPersistedData() {
-      const savedExams = localStorage.getItem('signsafe_exams_unchk');
+      const savedExams = localStorage.getItem('signsafe_exams_unchk_v3');
       if (savedExams) {
         try { allExamsByDate = JSON.parse(savedExams); } catch(e) {}
       }
 
-      const savedAtt = localStorage.getItem('signsafe_attendances_unchk');
+      const savedAtt = localStorage.getItem('signsafe_attendances_unchk_v3');
       if (savedAtt) {
         try { allAttendancesByDate = JSON.parse(savedAtt); } catch(e) {}
       }
@@ -515,43 +574,33 @@
         {
           id: "EXAM-MIC-L16",
           filiere: "Multimédia, Internet et Communication (MIC)",
-          promo: "Licence 2 / Promo 11 (Semestre 3 - Rattrapage)",
+          promo: "Licence 2 / Promo 11",
+          session: "Semestre 3 – 2ème session (Rattrapage)",
           matieresList: [
             "Fondamentaux de la communication",
             "Dessin assisté par ordinateur (DAO)",
             "Développement web 3 (PHP/Mysql)"
           ],
-          salle: "ENO",
-          heureDebut: "14:30",
-          heureFin: "17:15"
+          dateDebut: "2026-11-16",
+          dateFin: "2026-11-16"
         }
       ];
 
       allExamsByDate["2026-11-17"] = [
         {
-          id: "EXAM-MIC-M17-Matin",
+          id: "EXAM-MIC-M17",
           filiere: "Multimédia, Internet et Communication (MIC)",
-          promo: "Licence 2 / Promo 11 (Semestre 3 - Rattrapage)",
+          promo: "Licence 2 / Promo 11",
+          session: "Semestre 3 – 2ème session (Rattrapage)",
           matieresList: [
             "Technologie Web 3 (Introduction javascript)",
             "Community management",
             "Réalisation audiovisuelle numérique",
-            "Lega Tech"
-          ],
-          salle: "ENO",
-          heureDebut: "08:30",
-          heureFin: "12:00"
-        },
-        {
-          id: "EXAM-MIC-M17-Midi",
-          filiere: "Multimédia, Internet et Communication (MIC)",
-          promo: "Licence 2 / Promo 11 (Semestre 3 - Rattrapage)",
-          matieresList: [
+            "Lega Tech",
             "Service sur réseaux"
           ],
-          salle: "ENO",
-          heureDebut: "12:00",
-          heureFin: "13:00"
+          dateDebut: "2026-11-17",
+          dateFin: "2026-11-17"
         }
       ];
 
@@ -561,6 +610,7 @@
           {
             id: 1,
             examId: "EXAM-MIC-L16",
+            eno: "ENO Thiès",
             fullName: "Amadou Diallo",
             ine: "N019283720211",
             email: "amadou.diallo@unchk.sn",
@@ -572,11 +622,24 @@
           {
             id: 2,
             examId: "EXAM-MIC-L16",
+            eno: "ENO Dakar (Mermoz / Siège)",
             fullName: "Fatou Bintou Ndiaye",
             ine: "N019283720212",
             email: "fatou.ndiaye@unchk.sn",
             matieresChosen: ["Dessin assisté par ordinateur (DAO)", "Développement web 3 (PHP/Mysql)"],
             entryTime: "14:28:40",
+            exitTime: "",
+            signature: null
+          },
+          {
+            id: 3,
+            examId: "EXAM-MIC-L16",
+            eno: "ENO Mbour",
+            fullName: "Cheikh Tidiane Sow",
+            ine: "N019283720219",
+            email: "cheikh.sow@unchk.sn",
+            matieresChosen: ["Fondamentaux de la communication"],
+            entryTime: "14:31:10",
             exitTime: "",
             signature: null
           }
@@ -595,11 +658,11 @@
     }
 
     function saveExamsData() {
-      localStorage.setItem('signsafe_exams_unchk', JSON.stringify(allExamsByDate));
+      localStorage.setItem('signsafe_exams_unchk_v3', JSON.stringify(allExamsByDate));
     }
 
     function saveAttendancesData() {
-      localStorage.setItem('signsafe_attendances_unchk', JSON.stringify(allAttendancesByDate));
+      localStorage.setItem('signsafe_attendances_unchk_v3', JSON.stringify(allAttendancesByDate));
     }
 
     function onDateSelectionChange() {
@@ -625,7 +688,7 @@
         container.innerHTML = `
           <div class="p-6 text-center border-2 border-dashed border-slate-700 rounded-2xl text-slate-500 text-xs">
             Aucune épreuve planifiée pour cette date.<br/>
-            Cliquez sur <strong>"Ajouter une séance"</strong> ou <strong>"Charger Calendrier Promo 11 MIC"</strong>.
+            Cliquez sur <strong>"Ajouter une séance d'examen"</strong> ou <strong>"Charger Calendrier Promo 11 MIC"</strong>.
           </div>
         `;
       } else {
@@ -646,10 +709,12 @@
                   ${escapeHtml(ex.promo)}
                 </span>
               </div>
+              <div class="text-[11px] text-amber-300 font-medium">
+                <i class="fa-solid fa-tag text-slate-500 mr-1"></i>Session : ${escapeHtml(ex.session || 'Évaluation standard')}
+              </div>
               <div class="flex flex-wrap gap-1 pt-0.5">${matieresBadges}</div>
               <div class="text-[11px] text-slate-400 pt-0.5">
-                <i class="fa-solid fa-location-dot text-slate-500 mr-1"></i>${escapeHtml(ex.salle)} • 
-                <i class="fa-solid fa-clock text-slate-500 ml-1 mr-1"></i>${escapeHtml(ex.heureDebut)} - ${escapeHtml(ex.heureFin)}
+                <i class="fa-solid fa-calendar-range text-slate-500 mr-1"></i>Période : ${escapeHtml(ex.dateDebut || selectedDate)} au ${escapeHtml(ex.dateFin || selectedDate)}
               </div>
             </div>
             <div class="flex items-center gap-3 self-end sm:self-center">
@@ -735,10 +800,10 @@
       event.preventDefault();
       const filiere = document.getElementById('mAddFiliere').value.trim();
       const promo = document.getElementById('mAddPromo').value.trim();
+      const session = document.getElementById('mAddSession').value.trim();
       const matieresRaw = document.getElementById('mAddMatieres').value.trim();
-      const salle = document.getElementById('mAddSalle').value.trim();
-      const heureDebut = document.getElementById('mAddHeureDebut').value;
-      const heureFin = document.getElementById('mAddHeureFin').value;
+      const dateDebut = document.getElementById('mAddDateDebut').value;
+      const dateFin = document.getElementById('mAddDateFin').value;
 
       const matieresList = matieresRaw.split(',').map(m => m.trim()).filter(m => m.length > 0);
 
@@ -748,10 +813,10 @@
         id: "EXAM-" + Date.now(),
         filiere,
         promo,
+        session,
         matieresList,
-        salle,
-        heureDebut,
-        heureFin
+        dateDebut,
+        dateFin
       });
 
       saveExamsData();
@@ -768,7 +833,7 @@
     }
 
     // =========================================================================
-    // VUE ÉTUDIANT : ADAPTÉE AVEC CASES À COCHER POUR LES MATIÈRES (CALENDRIER)
+    // VUE ÉTUDIANT : ADAPTÉE AVEC SÉLECTION DE L'ENO & DES MATIÈRES
     // =========================================================================
     function showStudentFormView() {
       document.getElementById('supervisorDashboardView').classList.add('hidden');
@@ -790,9 +855,6 @@
       }
 
       document.getElementById('studSessionDate').innerText = selectedDate;
-      const firstExam = exams[0];
-      document.getElementById('studSessionEno').innerText = firstExam ? (firstExam.salle + " (" + firstExam.heureDebut + " - " + firstExam.heureFin + ")") : "Espace Numérique Ouvert (ENO)";
-
       onStudentFiliereChange();
     }
 
@@ -804,7 +866,7 @@
       container.innerHTML = '';
 
       if (current && current.matieresList && current.matieresList.length > 0) {
-        current.matieresList.forEach((matiere, idx) => {
+        current.matieresList.forEach((matiere) => {
           const label = document.createElement('label');
           label.className = "flex items-start gap-2.5 p-2 rounded-xl bg-slate-900 border border-slate-700/80 hover:border-emerald-500/50 cursor-pointer transition";
           label.innerHTML = `
@@ -830,6 +892,12 @@
     // Soumission de l'émargement étudiant
     function submitStudentAttendance(event) {
       event.preventDefault();
+
+      const eno = document.getElementById('studEnoSelect').value;
+      if (!eno) {
+        alert("Veuillez sélectionner votre Espace Numérique Ouvert (ENO).");
+        return;
+      }
 
       const examId = document.getElementById('studFiliereSelect').value;
       if (!examId) {
@@ -868,6 +936,7 @@
       const newRecord = {
         id: Date.now(),
         examId,
+        eno,
         fullName,
         ine,
         email,
@@ -886,6 +955,7 @@
 
       document.getElementById('confName').innerText = fullName;
       document.getElementById('confINE').innerText = ine;
+      document.getElementById('confEno').innerText = eno;
       document.getElementById('confMatiere').innerText = matieresChosen.join(', ');
       document.getElementById('confTime').innerText = entryTime;
     }
@@ -943,7 +1013,7 @@
     }
 
     // =========================================================================
-    // TABLEAU D'ÉMARGEMENT & FILTRAGE PERSONNALISÉ
+    // TABLEAU D'ÉMARGEMENT & FILTRAGE (PAR FILIÈRE ET PAR ENO)
     // =========================================================================
     function onFiliereFilterChange() {
       renderAttendanceTable();
@@ -952,17 +1022,20 @@
     function getFilteredAttendances() {
       const allDay = allAttendancesByDate[selectedDate] || [];
       const filterVal = document.getElementById('filterFiliereSelect') ? document.getElementById('filterFiliereSelect').value : "ALL";
+      const filterEnoVal = document.getElementById('filterEnoSelect') ? document.getElementById('filterEnoSelect').value : "ALL";
       const searchQuery = document.getElementById('searchTableInput') ? document.getElementById('searchTableInput').value.toLowerCase().trim() : "";
 
       return allDay.filter(a => {
         const matchFiliere = (filterVal === "ALL" || a.examId === filterVal);
+        const matchEno = (filterEnoVal === "ALL" || a.eno === filterEnoVal);
         const matchSearch = !searchQuery || (
           a.fullName.toLowerCase().includes(searchQuery) ||
           a.ine.toLowerCase().includes(searchQuery) ||
           a.email.toLowerCase().includes(searchQuery) ||
+          (a.eno && a.eno.toLowerCase().includes(searchQuery)) ||
           (a.matieresChosen && a.matieresChosen.some(m => m.toLowerCase().includes(searchQuery)))
         );
-        return matchFiliere && matchSearch;
+        return matchFiliere && matchEno && matchSearch;
       });
     }
 
@@ -979,7 +1052,7 @@
       if (list.length === 0) {
         tbody.innerHTML = `
           <tr>
-            <td colspan="9" class="py-8 text-center text-slate-500 italic">
+            <td colspan="10" class="py-8 text-center text-slate-500 italic">
               Aucun émargement pour le filtre sélectionné.
             </td>
           </tr>
@@ -997,6 +1070,9 @@
           <td class="py-3 px-4 font-mono text-slate-500">${index + 1}</td>
           <td class="py-3 px-4 font-bold text-white">${escapeHtml(item.fullName)}</td>
           <td class="py-3 px-4 font-mono text-emerald-400 font-semibold">${escapeHtml(item.ine)}</td>
+          <td class="py-3 px-4 text-amber-300 font-medium">
+            <i class="fa-solid fa-location-dot text-[10px] text-amber-400 mr-1"></i>${escapeHtml(item.eno || 'N/A')}
+          </td>
           <td class="py-3 px-4 text-slate-300">
             <span class="px-2 py-0.5 rounded bg-slate-950 border border-slate-700 text-cyan-300 text-[11px]">
               ${escapeHtml(ex.filiere)} - ${escapeHtml(ex.promo)}
@@ -1029,7 +1105,7 @@
     }
 
     // =========================================================================
-    // EXPORTS OFFICIELS UN-CHK PAR FILIÈRE ET PROMOTION (EXCEL & WORD & PDF)
+    // EXPORTS OFFICIELS UN-CHK PAR FILIÈRE, PROMOTION ET ENO
     // =========================================================================
 
     // 1. Export Excel (.xlsx) personnalisé
@@ -1042,6 +1118,7 @@
 
       const exams = allExamsByDate[selectedDate] || [];
       const filterVal = document.getElementById('filterFiliereSelect').value;
+      const filterEnoVal = document.getElementById('filterEnoSelect').value;
       const targetExam = exams.find(e => e.id === filterVal);
 
       const rows = list.map((a, i) => {
@@ -1050,10 +1127,11 @@
           "N°": i + 1,
           "Nom et Prénom": a.fullName,
           "Numéro INE": a.ine,
+          "ENO": a.eno || "",
           "Filière": ex.filiere || "",
           "Promotion": ex.promo || "",
+          "Session": ex.session || "",
           "Matières composées": (a.matieresChosen || []).join(', '),
-          "Lieu": ex.salle || "ENO",
           "Date": selectedDate,
           "Heure d'entrée": a.entryTime,
           "Heure de sortie": a.exitTime || "",
@@ -1067,7 +1145,8 @@
       XLSX.utils.book_append_sheet(workbook, worksheet, sheetName);
 
       const filiereTag = targetExam ? `${sanitizeFilename(targetExam.filiere)}_${sanitizeFilename(targetExam.promo)}` : "Toutes_Filieres";
-      const fileName = `Emargement_UNCHK_${filiereTag}_${selectedDate}.xlsx`;
+      const enoTag = filterEnoVal !== "ALL" ? `_${sanitizeFilename(filterEnoVal)}` : "";
+      const fileName = `Emargement_UNCHK_${filiereTag}${enoTag}_${selectedDate}.xlsx`;
       XLSX.writeFile(workbook, fileName);
     }
 
@@ -1081,6 +1160,7 @@
 
       const exams = allExamsByDate[selectedDate] || [];
       const filterVal = document.getElementById('filterFiliereSelect').value;
+      const filterEnoVal = document.getElementById('filterEnoSelect').value;
       const targetExam = exams.find(e => e.id === filterVal);
 
       let tableHtml = `
@@ -1089,6 +1169,7 @@
             <th style="padding:6px;">N°</th>
             <th style="padding:6px;">Nom et Prénom</th>
             <th style="padding:6px;">Numéro INE</th>
+            <th style="padding:6px;">ENO</th>
             <th style="padding:6px;">Filière / Promotion</th>
             <th style="padding:6px;">Matière(s) Composée(s)</th>
             <th style="padding:6px;">Email Institutionnel</th>
@@ -1105,6 +1186,7 @@
             <td style="padding:5px; text-align:center;">${i + 1}</td>
             <td style="padding:5px; font-weight:bold;">${escapeHtml(a.fullName)}</td>
             <td style="padding:5px; font-family:monospace;">${escapeHtml(a.ine)}</td>
+            <td style="padding:5px; font-weight:bold;">${escapeHtml(a.eno || '')}</td>
             <td style="padding:5px;">${escapeHtml(ex.filiere || '')} - ${escapeHtml(ex.promo || '')}</td>
             <td style="padding:5px; font-weight:bold; color:#0f766e;">${escapeHtml((a.matieresChosen || []).join(', '))}</td>
             <td style="padding:5px;">${escapeHtml(a.email)}</td>
@@ -1116,7 +1198,8 @@
       });
       tableHtml += `</table>`;
 
-      const headerFiliere = targetExam ? `${escapeHtml(targetExam.filiere).toUpperCase()} - ${escapeHtml(targetExam.promo)}` : "TOUTES LES FILIÈRES DU JOUR";
+      const headerFiliere = targetExam ? `${escapeHtml(targetExam.filiere).toUpperCase()} - ${escapeHtml(targetExam.promo)}` : "TOUTES LES FILIÈRES";
+      const enoMention = filterEnoVal !== "ALL" ? ` - ${escapeHtml(filterEnoVal)}` : " - Tous les ENO";
 
       const docContent = `
         <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
@@ -1135,7 +1218,7 @@
               <td style="width:40%; text-align:right; vertical-align:top;">
                 <p style="font-style:italic; font-size:13px; color:#0284c7; margin:0;">Foo nekk foofu la</p>
                 <p style="font-size:12px; margin:5px 0;"><strong>Date :</strong> ${selectedDate}</p>
-                <p style="font-size:12px; margin:0;"><strong>Lieu :</strong> ENO</p>
+                <p style="font-size:12px; margin:0;"><strong>Lieu :</strong> ${filterEnoVal !== 'ALL' ? escapeHtml(filterEnoVal) : 'Réseau National des ENO'}</p>
               </td>
             </tr>
           </table>
@@ -1143,12 +1226,12 @@
           <hr style="border:1px solid #cbd5e1; margin-bottom:15px;" />
 
           <h2 style="text-align:center; margin-bottom:5px; color:#0f172a;">FEUILLE D'ÉMARGEMENT OFFICIELLE DE SESSION</h2>
-          <h4 style="text-align:center; margin-top:0; color:#475569;">${headerFiliere}</h4>
+          <h4 style="text-align:center; margin-top:0; color:#475569;">${headerFiliere}${enoMention}</h4>
 
           <table style="width:100%; margin-bottom:15px; font-size:12px; background-color:#f8fafc; padding:10px; border:1px solid #e2e8f0;">
             <tr>
               <td><strong>Effectif émargé :</strong> ${list.length} étudiant(s)</td>
-              <td><strong>Surveillance :</strong> Conforme au règlement ENO</td>
+              <td><strong>Session :</strong> ${targetExam ? escapeHtml(targetExam.session || 'Standard') : 'Toutes sessions'}</td>
             </tr>
           </table>
 
@@ -1168,7 +1251,8 @@
       const link = document.createElement('a');
       link.href = url;
       const filiereTag = targetExam ? `${sanitizeFilename(targetExam.filiere)}_${sanitizeFilename(targetExam.promo)}` : "Toutes_Filieres";
-      link.download = `PV_Emargement_UNCHK_${filiereTag}_${selectedDate}.doc`;
+      const enoTag = filterEnoVal !== "ALL" ? `_${sanitizeFilename(filterEnoVal)}` : "";
+      link.download = `PV_Emargement_UNCHK_${filiereTag}${enoTag}_${selectedDate}.doc`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);

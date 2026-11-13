@@ -337,44 +337,53 @@
           <p class="text-xs text-slate-400">Exportation personnalisée par filière, promotion et ENO au format officiel</p>
         </div>
 
-        <!-- Filtre de filière pour export personnalisé -->
-        <div class="flex items-center gap-2">
-          <span class="text-xs text-slate-400">Filière ciblée :</span>
-          <select id="filterFiliereSelect" onchange="onFiliereFilterChange()" 
-            class="bg-slate-900 border border-slate-700 text-xs text-white rounded-xl px-3 py-2 outline-none font-semibold">
-            <option value="ALL">Toutes les filières</option>
-            <!-- Rempli dynamiquement -->
-          </select>
-        </div>
+        <!-- Filtres indépendants : Filière, Promotion et ENO -->
+        <div class="flex flex-wrap items-center gap-2">
+          <!-- Filtre Filière -->
+          <div class="flex items-center gap-1.5">
+            <span class="text-xs text-slate-400 font-semibold"><i class="fa-solid fa-graduation-cap text-emerald-400 mr-1"></i>Filière :</span>
+            <select id="filterFiliereSelect" onchange="onFilterChange()" 
+              class="bg-slate-900 border border-slate-700 text-xs text-white rounded-xl px-2.5 py-1.5 outline-none font-semibold focus:border-emerald-500">
+              <option value="ALL">Toutes les filières</option>
+            </select>
+          </div>
 
-        <!-- Filtre par ENO pour le surveillant régional -->
-        <div class="flex items-center gap-2">
-          <span class="text-xs text-slate-400">ENO :</span>
-          <select id="filterEnoSelect" onchange="onFiliereFilterChange()" 
-            class="bg-slate-900 border border-slate-700 text-xs text-white rounded-xl px-3 py-2 outline-none font-semibold">
-            <option value="ALL">Tous les ENO</option>
-            <option value="ENO Dakar (Mermoz / Siège)">ENO Dakar (Mermoz / Siège)</option>
-            <option value="ENO Guédiawaye">ENO Guédiawaye</option>
-            <option value="ENO Pikine">ENO Pikine</option>
-            <option value="ENO Rufisque">ENO Rufisque</option>
-            <option value="ENO Thiès">ENO Thiès</option>
-            <option value="ENO Mbour">ENO Mbour</option>
-            <option value="ENO Tivaouane">ENO Tivaouane</option>
-            <option value="ENO Saint-Louis">ENO Saint-Louis</option>
-            <option value="ENO Kaolack">ENO Kaolack</option>
-            <option value="ENO Ziguinchor">ENO Ziguinchor</option>
-            <option value="ENO Diourbel">ENO Diourbel</option>
-            <option value="ENO Fatick">ENO Fatick</option>
-            <option value="ENO Kolda">ENO Kolda</option>
-            <option value="ENO Louga">ENO Louga</option>
-            <option value="ENO Matam">ENO Matam</option>
-            <option value="ENO Tambacounda">ENO Tambacounda</option>
-            <option value="ENO Kédougou">ENO Kédougou</option>
-            <option value="ENO Sédhiou">ENO Sédhiou</option>
-            <option value="ENO Kaffrine">ENO Kaffrine</option>
-          </select>
-        </div>
+          <!-- Filtre Promotion -->
+          <div class="flex items-center gap-1.5">
+            <span class="text-xs text-slate-400 font-semibold"><i class="fa-solid fa-users-line text-cyan-400 mr-1"></i>Promo :</span>
+            <select id="filterPromoSelect" onchange="onFilterChange()" 
+              class="bg-slate-900 border border-slate-700 text-xs text-white rounded-xl px-2.5 py-1.5 outline-none font-semibold focus:border-cyan-500">
+              <option value="ALL">Toutes les promos</option>
+            </select>
+          </div>
 
+          <!-- Filtre ENO -->
+          <div class="flex items-center gap-1.5">
+            <span class="text-xs text-slate-400 font-semibold"><i class="fa-solid fa-location-dot text-amber-400 mr-1"></i>ENO :</span>
+            <select id="filterEnoSelect" onchange="onFilterChange()" 
+              class="bg-slate-900 border border-slate-700 text-xs text-white rounded-xl px-2.5 py-1.5 outline-none font-semibold focus:border-amber-500">
+              <option value="ALL">Tous les ENO</option>
+              <option value="ENO Dakar (Mermoz / Siège)">ENO Dakar (Mermoz / Siège)</option>
+              <option value="ENO Guédiawaye">ENO Guédiawaye</option>
+              <option value="ENO Pikine">ENO Pikine</option>
+              <option value="ENO Rufisque">ENO Rufisque</option>
+              <option value="ENO Thiès">ENO Thiès</option>
+              <option value="ENO Mbour">ENO Mbour</option>
+              <option value="ENO Tivaouane">ENO Tivaouane</option>
+              <option value="ENO Saint-Louis">ENO Saint-Louis</option>
+              <option value="ENO Kaolack">ENO Kaolack</option>
+              <option value="ENO Ziguinchor">ENO Ziguinchor</option>
+              <option value="ENO Diourbel">ENO Diourbel</option>
+              <option value="ENO Fatick">ENO Fatick</option>
+              <option value="ENO Kolda">ENO Kolda</option>
+              <option value="ENO Louga">ENO Louga</option>
+              <option value="ENO Matam">ENO Matam</option>
+              <option value="ENO Tambacounda">ENO Tambacounda</option>
+              <option value="ENO Kédougou">ENO Kédougou</option>
+              <option value="ENO Sédhiou">ENO Sédhiou</option>
+              <option value="ENO Kaffrine">ENO Kaffrine</option>
+            </select>
+          </div>
         <!-- Boutons d'exportation personnalisés : Excel, Word, PDF -->
         <div class="flex flex-wrap items-center gap-2">
           <button onclick="exportToExcel()" 
@@ -735,19 +744,40 @@
       const filieresNames = exams.map(e => e.filiere + " (" + e.promo + ")").join(", ");
       document.getElementById('summaryFilieresList').innerText = filieresNames || "Aucune séance programmée pour cette date";
 
-      // Filtre de filières pour l'export personnalisé
-      const filterSelect = document.getElementById('filterFiliereSelect');
-      const currentFilterVal = filterSelect.value;
-      filterSelect.innerHTML = `<option value="ALL">Toutes les filières (${attendances.length})</option>`;
-      exams.forEach(ex => {
-        const count = attendances.filter(a => a.examId === ex.id).length;
-        const opt = document.createElement('option');
-        opt.value = ex.id;
-        opt.innerText = `${ex.filiere} - ${ex.promo} (${count})`;
-        filterSelect.appendChild(opt);
-      });
-      if ([...filterSelect.options].some(o => o.value === currentFilterVal)) {
-        filterSelect.value = currentFilterVal;
+      // Filtre de filières et promotions pour l'affichage et l'export personnalisé
+      const filterFiliereSelect = document.getElementById('filterFiliereSelect');
+      const filterPromoSelect = document.getElementById('filterPromoSelect');
+      const currentFiliereVal = filterFiliereSelect ? filterFiliereSelect.value : "ALL";
+      const currentPromoVal = filterPromoSelect ? filterPromoSelect.value : "ALL";
+
+      if (filterFiliereSelect) {
+        // Liste unique des filières
+        const uniqueFilieres = [...new Set(exams.map(e => e.filiere))];
+        filterFiliereSelect.innerHTML = `<option value="ALL">Toutes les filières</option>`;
+        uniqueFilieres.forEach(f => {
+          const opt = document.createElement('option');
+          opt.value = f;
+          opt.innerText = f;
+          filterFiliereSelect.appendChild(opt);
+        });
+        if (uniqueFilieres.includes(currentFiliereVal)) {
+          filterFiliereSelect.value = currentFiliereVal;
+        }
+      }
+
+      if (filterPromoSelect) {
+        // Liste unique des promotions
+        const uniquePromos = [...new Set(exams.map(e => e.promo))];
+        filterPromoSelect.innerHTML = `<option value="ALL">Toutes les promos</option>`;
+        uniquePromos.forEach(p => {
+          const opt = document.createElement('option');
+          opt.value = p;
+          opt.innerText = p;
+          filterPromoSelect.appendChild(opt);
+        });
+        if (uniquePromos.includes(currentPromoVal)) {
+          filterPromoSelect.value = currentPromoVal;
+        }
       }
 
       // Générer le QR Code Unique
@@ -1013,29 +1043,39 @@
     }
 
     // =========================================================================
-    // TABLEAU D'ÉMARGEMENT & FILTRAGE (PAR FILIÈRE ET PAR ENO)
+    // TABLEAU D'ÉMARGEMENT & FILTRAGE (PAR FILIÈRE, PAR PROMO ET PAR ENO)
     // =========================================================================
-    function onFiliereFilterChange() {
+    function onFilterChange() {
       renderAttendanceTable();
     }
 
     function getFilteredAttendances() {
       const allDay = allAttendancesByDate[selectedDate] || [];
-      const filterVal = document.getElementById('filterFiliereSelect') ? document.getElementById('filterFiliereSelect').value : "ALL";
+      const exams = allExamsByDate[selectedDate] || [];
+
+      const filterFiliereVal = document.getElementById('filterFiliereSelect') ? document.getElementById('filterFiliereSelect').value : "ALL";
+      const filterPromoVal = document.getElementById('filterPromoSelect') ? document.getElementById('filterPromoSelect').value : "ALL";
       const filterEnoVal = document.getElementById('filterEnoSelect') ? document.getElementById('filterEnoSelect').value : "ALL";
       const searchQuery = document.getElementById('searchTableInput') ? document.getElementById('searchTableInput').value.toLowerCase().trim() : "";
 
       return allDay.filter(a => {
-        const matchFiliere = (filterVal === "ALL" || a.examId === filterVal);
+        const ex = exams.find(e => e.id === a.examId) || {};
+        
+        const matchFiliere = (filterFiliereVal === "ALL" || ex.filiere === filterFiliereVal);
+        const matchPromo = (filterPromoVal === "ALL" || ex.promo === filterPromoVal);
         const matchEno = (filterEnoVal === "ALL" || a.eno === filterEnoVal);
+
         const matchSearch = !searchQuery || (
           a.fullName.toLowerCase().includes(searchQuery) ||
           a.ine.toLowerCase().includes(searchQuery) ||
           a.email.toLowerCase().includes(searchQuery) ||
           (a.eno && a.eno.toLowerCase().includes(searchQuery)) ||
+          (ex.filiere && ex.filiere.toLowerCase().includes(searchQuery)) ||
+          (ex.promo && ex.promo.toLowerCase().includes(searchQuery)) ||
           (a.matieresChosen && a.matieresChosen.some(m => m.toLowerCase().includes(searchQuery)))
         );
-        return matchFiliere && matchEno && matchSearch;
+
+        return matchFiliere && matchPromo && matchEno && matchSearch;
       });
     }
 
@@ -1117,9 +1157,9 @@
       }
 
       const exams = allExamsByDate[selectedDate] || [];
-      const filterVal = document.getElementById('filterFiliereSelect').value;
+      const filterFiliereVal = document.getElementById('filterFiliereSelect').value;
+      const filterPromoVal = document.getElementById('filterPromoSelect').value;
       const filterEnoVal = document.getElementById('filterEnoSelect').value;
-      const targetExam = exams.find(e => e.id === filterVal);
 
       const rows = list.map((a, i) => {
         const ex = exams.find(e => e.id === a.examId) || {};
@@ -1141,12 +1181,13 @@
 
       const worksheet = XLSX.utils.json_to_sheet(rows);
       const workbook = XLSX.utils.book_new();
-      const sheetName = targetExam ? sanitizeFilename(targetExam.filiere).slice(0, 25) : "Emargements_ENO";
+      const sheetName = filterFiliereVal !== "ALL" ? sanitizeFilename(filterFiliereVal).slice(0, 25) : "Emargements_ENO";
       XLSX.utils.book_append_sheet(workbook, worksheet, sheetName);
 
-      const filiereTag = targetExam ? `${sanitizeFilename(targetExam.filiere)}_${sanitizeFilename(targetExam.promo)}` : "Toutes_Filieres";
+      const filiereTag = filterFiliereVal !== "ALL" ? sanitizeFilename(filterFiliereVal) : "Toutes_Filieres";
+      const promoTag = filterPromoVal !== "ALL" ? `_${sanitizeFilename(filterPromoVal)}` : "";
       const enoTag = filterEnoVal !== "ALL" ? `_${sanitizeFilename(filterEnoVal)}` : "";
-      const fileName = `Emargement_UNCHK_${filiereTag}${enoTag}_${selectedDate}.xlsx`;
+      const fileName = `Emargement_UNCHK_${filiereTag}${promoTag}${enoTag}_${selectedDate}.xlsx`;
       XLSX.writeFile(workbook, fileName);
     }
 
@@ -1159,9 +1200,9 @@
       }
 
       const exams = allExamsByDate[selectedDate] || [];
-      const filterVal = document.getElementById('filterFiliereSelect').value;
+      const filterFiliereVal = document.getElementById('filterFiliereSelect').value;
+      const filterPromoVal = document.getElementById('filterPromoSelect').value;
       const filterEnoVal = document.getElementById('filterEnoSelect').value;
-      const targetExam = exams.find(e => e.id === filterVal);
 
       let tableHtml = `
         <table border="1" style="border-collapse:collapse; width:100%; font-family:Arial, sans-serif; font-size:11px;">
@@ -1198,8 +1239,16 @@
       });
       tableHtml += `</table>`;
 
-      const headerFiliere = targetExam ? `${escapeHtml(targetExam.filiere).toUpperCase()} - ${escapeHtml(targetExam.promo)}` : "TOUTES LES FILIÈRES";
-      const enoMention = filterEnoVal !== "ALL" ? ` - ${escapeHtml(filterEnoVal)}` : " - Tous les ENO";
+      let headerFiliere = "TOUTES LES FILIÈRES";
+      if (filterFiliereVal !== "ALL" && filterPromoVal !== "ALL") {
+        headerFiliere = `${escapeHtml(filterFiliereVal).toUpperCase()} - ${escapeHtml(filterPromoVal)}`;
+      } else if (filterFiliereVal !== "ALL") {
+        headerFiliere = `${escapeHtml(filterFiliereVal).toUpperCase()} - Toutes promos`;
+      } else if (filterPromoVal !== "ALL") {
+        headerFiliere = `TOUTES FILIÈRES - ${escapeHtml(filterPromoVal)}`;
+      }
+
+      const enoMention = filterEnoVal !== "ALL" ? ` - ${escapeHtml(filterEnoVal)}` : " - Réseau des ENO";
 
       const docContent = `
         <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
@@ -1231,7 +1280,7 @@
           <table style="width:100%; margin-bottom:15px; font-size:12px; background-color:#f8fafc; padding:10px; border:1px solid #e2e8f0;">
             <tr>
               <td><strong>Effectif émargé :</strong> ${list.length} étudiant(s)</td>
-              <td><strong>Session :</strong> ${targetExam ? escapeHtml(targetExam.session || 'Standard') : 'Toutes sessions'}</td>
+              <td><strong>Filière / Promo :</strong> ${headerFiliere}</td>
             </tr>
           </table>
 
@@ -1250,9 +1299,11 @@
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      const filiereTag = targetExam ? `${sanitizeFilename(targetExam.filiere)}_${sanitizeFilename(targetExam.promo)}` : "Toutes_Filieres";
+
+      const filiereTag = filterFiliereVal !== "ALL" ? sanitizeFilename(filterFiliereVal) : "Toutes_Filieres";
+      const promoTag = filterPromoVal !== "ALL" ? `_${sanitizeFilename(filterPromoVal)}` : "";
       const enoTag = filterEnoVal !== "ALL" ? `_${sanitizeFilename(filterEnoVal)}` : "";
-      link.download = `PV_Emargement_UNCHK_${filiereTag}${enoTag}_${selectedDate}.doc`;
+      link.download = `PV_Emargement_UNCHK_${filiereTag}${promoTag}${enoTag}_${selectedDate}.doc`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);

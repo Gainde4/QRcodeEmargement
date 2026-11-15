@@ -10,6 +10,8 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
   <!-- SheetJS pour export Excel -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <!-- Tesseract.js pour l'OCR / lecture automatique de photos de calendrier -->
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
   <!-- FontAwesome Icons -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <style>
@@ -466,117 +468,133 @@
   </div>
 
   <!-- ========================================================================= -->
-  <!-- MODAL : AJOUTER UNE SÉANCE D'ÉVALUATION                                    -->
+  <!-- MODAL : AJOUTER UNE SÉANCE D'ÉVALUATION (COMPACTE & SCROLLABLE)           -->
   <!-- ========================================================================= -->
-  <div id="addExamModal" class="hidden fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-    <div class="bg-slate-900 border border-slate-700 rounded-3xl p-6 sm:p-8 max-w-lg w-full shadow-2xl relative">
-      <div class="flex justify-between items-center border-b border-slate-800 pb-4 mb-4">
+  <div id="addExamModal" class="hidden fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-3 sm:p-4">
+    <div class="bg-slate-900 border border-slate-700 rounded-2xl max-w-md w-full shadow-2xl relative max-h-[90vh] flex flex-col overflow-hidden">
+      
+      <!-- En-tête compacte fixe -->
+      <div class="flex justify-between items-center px-4 py-3 border-b border-slate-800 shrink-0 bg-slate-900/90">
         <div>
-          <h3 class="text-base font-bold text-white flex items-center gap-2">
+          <h3 class="text-sm font-bold text-white flex items-center gap-1.5">
             <i class="fa-solid fa-calendar-plus text-emerald-400"></i>
             <span>Ajouter une séance d'examen</span>
           </h3>
-          <p class="text-[11px] text-slate-400 mt-0.5">Renseignez manuellement ou chargez un calendrier existant</p>
+          <p class="text-[10px] text-slate-400">Saisie manuelle ou import photo / calendrier</p>
         </div>
-        <button onclick="closeAddExamModal()" class="text-slate-400 hover:text-white text-sm">
+        <button onclick="closeAddExamModal()" class="text-slate-400 hover:text-white p-1 text-sm">
           <i class="fa-solid fa-xmark"></i>
         </button>
       </div>
 
-      <!-- BLOC CHARGER UN CALENDRIER D'EXAMEN -->
-      <div class="bg-slate-950/80 border border-slate-800 p-3.5 rounded-2xl mb-4 space-y-2">
-        <div class="flex items-center justify-between">
-          <span class="text-xs font-bold text-cyan-400 flex items-center gap-1.5">
-            <i class="fa-solid fa-file-import"></i>
-            <span>Charger un calendrier d'examen prédéfini</span>
-          </span>
-          <span class="text-[10px] text-slate-500 font-mono">1-clic</span>
-        </div>
-        <p class="text-[11px] text-slate-400 leading-relaxed">
-          Sélectionnez un modèle officiel UN-CHK ou collez le texte d'un calendrier pour pré-remplir les champs en un instant :
-        </p>
+      <!-- Corps défilable (scrollable) pour ne jamais dépasser de l'écran -->
+      <div class="p-4 space-y-3.5 overflow-y-auto flex-1 text-xs">
         
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
-          <button type="button" onclick="loadExamPreset('MIC_L2_P11_S1')" 
-            class="p-2 text-left bg-slate-900 hover:bg-slate-800 border border-slate-700/80 hover:border-cyan-500/50 rounded-xl text-[11px] text-slate-200 transition">
-            <div class="font-bold text-cyan-300">Promo 11 - L2 MIC (Séance 1)</div>
-            <div class="text-[10px] text-slate-400 truncate">Com, DAO, Dév Web 3 (PHP/MySQL)</div>
-          </button>
-          <button type="button" onclick="loadExamPreset('MIC_L2_P11_S2')" 
-            class="p-2 text-left bg-slate-900 hover:bg-slate-800 border border-slate-700/80 hover:border-cyan-500/50 rounded-xl text-[11px] text-slate-200 transition">
-            <div class="font-bold text-cyan-300">Promo 11 - L2 MIC (Séance 2)</div>
-            <div class="text-[10px] text-slate-400 truncate">Tech Web 3, CM, Audiovisuel, Legal</div>
-          </button>
-        </div>
+        <!-- BLOC CHARGER UN CALENDRIER (COMPACT) -->
+        <div class="bg-slate-950/90 border border-slate-800 p-3 rounded-xl space-y-2">
+          <div class="flex items-center justify-between">
+            <span class="text-[11px] font-bold text-cyan-400 flex items-center gap-1.5">
+              <i class="fa-solid fa-file-import"></i>
+              <span>Charger un calendrier</span>
+            </span>
+            <span class="text-[9px] text-slate-500 font-mono">1-clic</span>
+          </div>
 
-        <!-- Import texte libre / copier-coller -->
-        <div class="pt-2 border-t border-slate-800/80">
-          <button type="button" onclick="togglePasteCalendarArea()" class="text-[11px] text-emerald-400 hover:underline flex items-center gap-1">
-            <i class="fa-solid fa-paste"></i>
-            <span>Ou coller le texte brut d'un calendrier officiel...</span>
-          </button>
-          <div id="pasteCalendarArea" class="hidden mt-2 space-y-2">
-            <textarea id="pasteCalendarInput" rows="3" placeholder="Ex: Multimédia, Internet et Communication | Licence 2 Promo 11 | Semestre 3 Rattrapage | Matière 1, Matière 2, Matière 3" 
-              class="w-full bg-slate-900 border border-slate-700 rounded-xl p-2 text-[11px] text-white focus:outline-none focus:border-cyan-500 font-mono"></textarea>
-            <button type="button" onclick="parseAndFillPastedCalendar()" 
-              class="px-3 py-1 bg-cyan-600 hover:bg-cyan-500 text-white rounded-lg text-[11px] font-bold transition">
-              Appliquer au formulaire
+          <!-- Bouton IMPORTER UNE PHOTO DU CALENDRIER -->
+          <div class="pt-0.5">
+            <label for="calendarPhotoInput" 
+              class="w-full flex items-center justify-center gap-2 px-3 py-2 bg-gradient-to-r from-cyan-600/20 to-teal-600/20 hover:from-cyan-600/30 hover:to-teal-600/30 border border-cyan-500/40 text-cyan-300 rounded-xl cursor-pointer transition font-semibold text-[11px]">
+              <i class="fa-solid fa-camera text-xs"></i>
+              <span>📸 Importer une photo de calendrier</span>
+            </label>
+            <input type="file" id="calendarPhotoInput" accept="image/*" class="hidden" onchange="handleCalendarPhotoUpload(event)" />
+            <div id="ocrStatusMsg" class="hidden text-[10px] text-amber-300 font-mono mt-1 text-center animate-pulse"></div>
+          </div>
+
+          <!-- Modèles rapides UN-CHK -->
+          <div class="grid grid-cols-2 gap-1.5 pt-1">
+            <button type="button" onclick="loadExamPreset('MIC_L2_P11_S1')" 
+              class="p-1.5 text-left bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-cyan-500/40 rounded-lg text-[10px] text-slate-300 transition">
+              <span class="font-bold text-cyan-300 block truncate">Promo 11 - S1 (16 nov)</span>
+              <span class="text-slate-500 text-[9px] block truncate">DAO, Com, PHP/MySQL</span>
+            </button>
+            <button type="button" onclick="loadExamPreset('MIC_L2_P11_S2')" 
+              class="p-1.5 text-left bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-cyan-500/40 rounded-lg text-[10px] text-slate-300 transition">
+              <span class="font-bold text-cyan-300 block truncate">Promo 11 - S2 (17 nov)</span>
+              <span class="text-slate-500 text-[9px] block truncate">Tech Web, CM, Audio</span>
             </button>
           </div>
+
+          <!-- Option coller du texte -->
+          <div class="pt-1 border-t border-slate-800/80">
+            <button type="button" onclick="togglePasteCalendarArea()" class="text-[10px] text-slate-400 hover:text-emerald-400 flex items-center gap-1">
+              <i class="fa-solid fa-paste"></i>
+              <span>Ou coller le texte du calendrier...</span>
+            </button>
+            <div id="pasteCalendarArea" class="hidden mt-1.5 space-y-1.5">
+              <textarea id="pasteCalendarInput" rows="2" placeholder="Collez le texte du calendrier ici..." 
+                class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-[10px] text-white focus:outline-none focus:border-cyan-500 font-mono resize-none"></textarea>
+              <button type="button" onclick="parseAndFillPastedCalendar()" 
+                class="px-2.5 py-0.5 bg-cyan-600 hover:bg-cyan-500 text-white rounded text-[10px] font-bold transition">
+                Appliquer
+              </button>
+            </div>
+          </div>
         </div>
+
+        <!-- Formulaire de saisie -->
+        <form id="newExamForm" onsubmit="saveNewExam(event)" class="space-y-3">
+          <div class="grid grid-cols-2 gap-2.5">
+            <div>
+              <label class="block text-slate-300 font-semibold mb-0.5 text-[11px]">Filière / Formation *</label>
+              <input type="text" id="mAddFiliere" required placeholder="Ex: Multimédia..." 
+                class="w-full bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-white focus:outline-none focus:border-emerald-500 text-xs">
+            </div>
+            <div>
+              <label class="block text-slate-300 font-semibold mb-0.5 text-[11px]">Promotion *</label>
+              <input type="text" id="mAddPromo" required placeholder="Ex: Licence 2..." 
+                class="w-full bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-white focus:outline-none focus:border-emerald-500 text-xs">
+            </div>
+          </div>
+
+          <div>
+            <label class="block text-slate-300 font-semibold mb-0.5 text-[11px]">Session *</label>
+            <input type="text" id="mAddSession" required placeholder="Ex: Semestre 3 – Rattrapage" 
+              class="w-full bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-white focus:outline-none focus:border-emerald-500 text-xs">
+          </div>
+
+          <div>
+            <label class="block text-slate-300 font-semibold mb-0.5 text-[11px]">Matières concernées *</label>
+            <textarea id="mAddMatieres" required rows="2" placeholder="Séparées par des virgules : Matière 1, Matière 2..." 
+              class="w-full bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-white focus:outline-none focus:border-emerald-500 text-xs resize-none"></textarea>
+          </div>
+
+          <div class="grid grid-cols-2 gap-2.5">
+            <div>
+              <label class="block text-slate-300 font-semibold mb-0.5 text-[11px]">Date de début *</label>
+              <input type="date" id="mAddDateDebut" required 
+                class="w-full bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-white focus:outline-none focus:border-emerald-500 text-xs">
+            </div>
+            <div>
+              <label class="block text-slate-300 font-semibold mb-0.5 text-[11px]">Date de fin *</label>
+              <input type="date" id="mAddDateFin" required 
+                class="w-full bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-white focus:outline-none focus:border-emerald-500 text-xs">
+            </div>
+          </div>
+
+          <div class="pt-2 flex justify-end gap-2 border-t border-slate-800">
+            <button type="button" onclick="closeAddExamModal()" 
+              class="px-3.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl font-semibold text-xs">
+              Annuler
+            </button>
+            <button type="submit" 
+              class="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl text-xs shadow-md shadow-emerald-600/20">
+              Enregistrer
+            </button>
+          </div>
+        </form>
       </div>
 
-      <form id="newExamForm" onsubmit="saveNewExam(event)" class="space-y-4 text-xs">
-        <div class="grid grid-cols-2 gap-3">
-          <div>
-            <label class="block text-slate-300 font-semibold mb-1">Filière / Formation *</label>
-            <input type="text" id="mAddFiliere" required placeholder="Ex: Multimédia, Internet et Communication (MIC)" 
-              class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-emerald-500">
-          </div>
-          <div>
-            <label class="block text-slate-300 font-semibold mb-1">Promotion *</label>
-            <input type="text" id="mAddPromo" required placeholder="Ex: Licence 2 / Promo 11" 
-              class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-emerald-500">
-          </div>
-        </div>
-
-        <div>
-          <label class="block text-slate-300 font-semibold mb-1">Session *</label>
-          <input type="text" id="mAddSession" required placeholder="Ex: Semestre 3 – 2ème session (Rattrapage)" 
-            class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-emerald-500">
-        </div>
-
-        <div>
-          <label class="block text-slate-300 font-semibold mb-1">Matières concernées *</label>
-          <p class="text-[10px] text-slate-400 mb-1">Séparez les matières par des virgules pour permettre le choix par cases à cocher</p>
-          <textarea id="mAddMatieres" required rows="2" placeholder="Ex: Fondamentaux de la communication, Dessin assisté par ordinateur (DAO), Développement web 3 (PHP/Mysql)" 
-            class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-emerald-500 resize-none"></textarea>
-        </div>
-
-        <div class="grid grid-cols-2 gap-3">
-          <div>
-            <label class="block text-slate-300 font-semibold mb-1">Date de début *</label>
-            <input type="date" id="mAddDateDebut" required 
-              class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-emerald-500">
-          </div>
-          <div>
-            <label class="block text-slate-300 font-semibold mb-1">Date de fin *</label>
-            <input type="date" id="mAddDateFin" required 
-              class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-emerald-500">
-          </div>
-        </div>
-
-        <div class="pt-2 flex justify-end gap-2">
-          <button type="button" onclick="closeAddExamModal()" 
-            class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl font-semibold">
-            Annuler
-          </button>
-          <button type="submit" 
-            class="px-5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl shadow-lg shadow-emerald-600/20">
-            Enregistrer la séance
-          </button>
-        </div>
-      </form>
     </div>
   </div>
 
@@ -1031,6 +1049,151 @@
       pasteArea.classList.toggle('hidden');
     }
 
+    async function handleCalendarPhotoUpload(event) {
+      const file = event.target.files && event.target.files[0];
+      if (!file) return;
+
+      const statusMsg = document.getElementById('ocrStatusMsg');
+      statusMsg.classList.remove('hidden');
+      statusMsg.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-1"></i> Chargement du moteur OCR...`;
+
+      try {
+        if (typeof Tesseract === 'undefined') {
+          throw new Error("Bibliothèque Tesseract OCR non accessible. Vérifiez votre connexion.");
+        }
+
+        const result = await Tesseract.recognize(file, 'fra+eng', {
+          logger: m => {
+            if (m.status === 'recognizing text') {
+              const pct = Math.round((m.progress || 0) * 100);
+              statusMsg.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-1"></i> Numérisation de la photo : ${pct}%`;
+            }
+          }
+        });
+
+        const recognizedText = (result && result.data && result.data.text) ? result.data.text.trim() : '';
+
+        if (!recognizedText) {
+          statusMsg.innerHTML = `<span class="text-rose-400">Aucun texte lisible détecté sur cette photo.</span>`;
+          setTimeout(() => statusMsg.classList.add('hidden'), 4000);
+          return;
+        }
+
+        statusMsg.innerHTML = `<span class="text-emerald-400 font-bold"><i class="fa-solid fa-check mr-1"></i> Analyse terminée ! Champs renseignés.</span>`;
+        parseAndFillOcrText(recognizedText);
+
+        setTimeout(() => {
+          statusMsg.classList.add('hidden');
+        }, 3500);
+
+      } catch (err) {
+        console.error("Erreur OCR :", err);
+        statusMsg.innerHTML = `<span class="text-rose-400">Erreur OCR : ${err.message || 'Échec'}</span>`;
+        setTimeout(() => statusMsg.classList.add('hidden'), 4500);
+      } finally {
+        event.target.value = '';
+      }
+    }
+
+    function parseAndFillOcrText(text) {
+      if (!text) return;
+      const lower = text.toLowerCase();
+
+      // 1. Filière
+      let detectedFiliere = "";
+      if (lower.includes("multimédia") || lower.includes("mic") || lower.includes("multimedia")) {
+        detectedFiliere = "Multimédia, Internet et Communication (MIC)";
+      } else if (lower.includes("développement") || lower.includes("dai") || lower.includes("developpement")) {
+        detectedFiliere = "Développement d'Applications Internet (DAI)";
+      } else if (lower.includes("informatique")) {
+        detectedFiliere = "Informatique";
+      } else if (lower.includes("droit") || lower.includes("juridique") || lower.includes("sjp")) {
+        detectedFiliere = "Sciences Juridiques et Politiques (SJP)";
+      } else if (lower.includes("seg") || lower.includes("gestion") || lower.includes("économie") || lower.includes("economie")) {
+        detectedFiliere = "Sciences Économiques et Gestion (SEG)";
+      }
+
+      // 2. Promotion
+      let detectedPromo = "";
+      const promoMatch = text.match(/promo(?:tion)?\s*(\d+)/i);
+      const licenceMatch = text.match(/licence\s*(\d)/i) || text.match(/\bL(\d)\b/);
+      const masterMatch = text.match(/master\s*(\d)/i) || text.match(/\bM(\d)\b/);
+
+      if (licenceMatch && promoMatch) {
+        detectedPromo = `Licence ${licenceMatch[1]} / Promo ${promoMatch[1]}`;
+      } else if (promoMatch) {
+        detectedPromo = `Promo ${promoMatch[1]}`;
+      } else if (licenceMatch) {
+        detectedPromo = `Licence ${licenceMatch[1]}`;
+      } else if (masterMatch) {
+        detectedPromo = `Master ${masterMatch[1]}`;
+      }
+
+      // 3. Session
+      let detectedSession = "";
+      if (lower.includes("rattrapage") || lower.includes("2ème session") || lower.includes("2eme session") || lower.includes("seconde session")) {
+        const semMatch = text.match(/semestre\s*(\d+)/i) || text.match(/\bS(\d+)\b/);
+        detectedSession = semMatch ? `Semestre ${semMatch[1]} – 2ème session (Rattrapage)` : "2ème session (Rattrapage)";
+      } else if (lower.includes("normale") || lower.includes("1ère session") || lower.includes("1ere session")) {
+        const semMatch = text.match(/semestre\s*(\d+)/i) || text.match(/\bS(\d+)\b/);
+        detectedSession = semMatch ? `Semestre ${semMatch[1]} – Session normale` : "Session normale";
+      } else {
+        const semMatch = text.match(/semestre\s*(\d+)/i);
+        if (semMatch) detectedSession = `Semestre ${semMatch[1]}`;
+      }
+
+      // 4. Dates
+      const isoDates = text.match(/\b(202[4-9]-\d{2}-\d{2})\b/g);
+      let detectedDate = "";
+      if (isoDates && isoDates.length > 0) {
+        detectedDate = isoDates[0];
+      } else {
+        const frDateMatch = text.match(/\b(\d{1,2})[/-](\d{1,2})[/-](202[4-9]|\d{2})\b/);
+        if (frDateMatch) {
+          const d = frDateMatch[1].padStart(2, '0');
+          const m = frDateMatch[2].padStart(2, '0');
+          let y = frDateMatch[3];
+          if (y.length === 2) y = "20" + y;
+          detectedDate = `${y}-${m}-${d}`;
+        } else {
+          const moisMap = {
+            janvier: '01', fevrier: '02', février: '02', mars: '03', avril: '04',
+            mai: '05', juin: '06', juillet: '07', aout: '08', août: '08',
+            septembre: '09', octobre: '10', novembre: '11', decembre: '12', décembre: '12'
+          };
+          const textMois = text.match(/(\d{1,2})\s+(janvier|fevrier|février|mars|avril|mai|juin|juillet|aout|août|septembre|octobre|novembre|decembre|décembre)\s*(202\d)?/i);
+          if (textMois) {
+            const d = textMois[1].padStart(2, '0');
+            const m = moisMap[textMois[2].toLowerCase()];
+            const y = textMois[3] || new Date().getFullYear().toString();
+            detectedDate = `${y}-${m}-${d}`;
+          }
+        }
+      }
+
+      // 5. Matières (recherche de lignes pertinentes)
+      const rawLines = text.split('\n')
+        .map(l => l.trim().replace(/^[-•*|]+\s*/, ''))
+        .filter(l => l.length > 3 && !l.match(/^(calendrier|date|heure|horaire|épreuve|epreuve|salle|en-tête|page|université|universite|eno|sn|unchk|à l'attention|il est porté|voir ci-joint)/i));
+
+      // Garder les intitulés raisonnables
+      const candidateSubjects = rawLines.filter(l => l.length < 90 && !l.toLowerCase().includes('avis aux'));
+      const detectedMatieres = candidateSubjects.slice(0, 8).join(', ');
+
+      // Application des valeurs trouvées
+      if (detectedFiliere) document.getElementById('mAddFiliere').value = detectedFiliere;
+      if (detectedPromo) document.getElementById('mAddPromo').value = detectedPromo;
+      if (detectedSession) document.getElementById('mAddSession').value = detectedSession;
+      if (detectedMatieres) document.getElementById('mAddMatieres').value = detectedMatieres;
+      if (detectedDate) {
+        document.getElementById('mAddDateDebut').value = detectedDate;
+        document.getElementById('mAddDateFin').value = detectedDate;
+      }
+
+      const pasteInput = document.getElementById('pasteCalendarInput');
+      if (pasteInput) pasteInput.value = text;
+    }
+
     function parseAndFillPastedCalendar() {
       const text = document.getElementById('pasteCalendarInput').value.trim();
       if (!text) {
@@ -1038,7 +1201,7 @@
         return;
       }
 
-      // Si le format contient des séparateurs | ou retour à la ligne
+      // Si le format contient des séparateurs |
       if (text.includes('|')) {
         const parts = text.split('|').map(p => p.trim());
         if (parts[0]) document.getElementById('mAddFiliere').value = parts[0];
@@ -1046,15 +1209,7 @@
         if (parts[2]) document.getElementById('mAddSession').value = parts[2];
         if (parts[3]) document.getElementById('mAddMatieres').value = parts[3];
       } else {
-        // Déduction par mots-clés
-        document.getElementById('mAddMatieres').value = text;
-        if (text.toLowerCase().includes('mic') || text.toLowerCase().includes('multimédia')) {
-          document.getElementById('mAddFiliere').value = "Multimédia, Internet et Communication (MIC)";
-          document.getElementById('mAddPromo').value = "Licence 2 / Promo 11";
-        }
-        if (text.toLowerCase().includes('rattrapage')) {
-          document.getElementById('mAddSession').value = "2ème session (Rattrapage)";
-        }
+        parseAndFillOcrText(text);
       }
 
       document.getElementById('pasteCalendarArea').classList.add('hidden');

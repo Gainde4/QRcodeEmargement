@@ -471,13 +471,59 @@
   <div id="addExamModal" class="hidden fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
     <div class="bg-slate-900 border border-slate-700 rounded-3xl p-6 sm:p-8 max-w-lg w-full shadow-2xl relative">
       <div class="flex justify-between items-center border-b border-slate-800 pb-4 mb-4">
-        <h3 class="text-base font-bold text-white flex items-center gap-2">
-          <i class="fa-solid fa-calendar-plus text-emerald-400"></i>
-          <span>Ajouter une séance d'examen</span>
-        </h3>
+        <div>
+          <h3 class="text-base font-bold text-white flex items-center gap-2">
+            <i class="fa-solid fa-calendar-plus text-emerald-400"></i>
+            <span>Ajouter une séance d'examen</span>
+          </h3>
+          <p class="text-[11px] text-slate-400 mt-0.5">Renseignez manuellement ou chargez un calendrier existant</p>
+        </div>
         <button onclick="closeAddExamModal()" class="text-slate-400 hover:text-white text-sm">
           <i class="fa-solid fa-xmark"></i>
         </button>
+      </div>
+
+      <!-- BLOC CHARGER UN CALENDRIER D'EXAMEN -->
+      <div class="bg-slate-950/80 border border-slate-800 p-3.5 rounded-2xl mb-4 space-y-2">
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-bold text-cyan-400 flex items-center gap-1.5">
+            <i class="fa-solid fa-file-import"></i>
+            <span>Charger un calendrier d'examen prédéfini</span>
+          </span>
+          <span class="text-[10px] text-slate-500 font-mono">1-clic</span>
+        </div>
+        <p class="text-[11px] text-slate-400 leading-relaxed">
+          Sélectionnez un modèle officiel UN-CHK ou collez le texte d'un calendrier pour pré-remplir les champs en un instant :
+        </p>
+        
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+          <button type="button" onclick="loadExamPreset('MIC_L2_P11_S1')" 
+            class="p-2 text-left bg-slate-900 hover:bg-slate-800 border border-slate-700/80 hover:border-cyan-500/50 rounded-xl text-[11px] text-slate-200 transition">
+            <div class="font-bold text-cyan-300">Promo 11 - L2 MIC (Séance 1)</div>
+            <div class="text-[10px] text-slate-400 truncate">Com, DAO, Dév Web 3 (PHP/MySQL)</div>
+          </button>
+          <button type="button" onclick="loadExamPreset('MIC_L2_P11_S2')" 
+            class="p-2 text-left bg-slate-900 hover:bg-slate-800 border border-slate-700/80 hover:border-cyan-500/50 rounded-xl text-[11px] text-slate-200 transition">
+            <div class="font-bold text-cyan-300">Promo 11 - L2 MIC (Séance 2)</div>
+            <div class="text-[10px] text-slate-400 truncate">Tech Web 3, CM, Audiovisuel, Legal</div>
+          </button>
+        </div>
+
+        <!-- Import texte libre / copier-coller -->
+        <div class="pt-2 border-t border-slate-800/80">
+          <button type="button" onclick="togglePasteCalendarArea()" class="text-[11px] text-emerald-400 hover:underline flex items-center gap-1">
+            <i class="fa-solid fa-paste"></i>
+            <span>Ou coller le texte brut d'un calendrier officiel...</span>
+          </button>
+          <div id="pasteCalendarArea" class="hidden mt-2 space-y-2">
+            <textarea id="pasteCalendarInput" rows="3" placeholder="Ex: Multimédia, Internet et Communication | Licence 2 Promo 11 | Semestre 3 Rattrapage | Matière 1, Matière 2, Matière 3" 
+              class="w-full bg-slate-900 border border-slate-700 rounded-xl p-2 text-[11px] text-white focus:outline-none focus:border-cyan-500 font-mono"></textarea>
+            <button type="button" onclick="parseAndFillPastedCalendar()" 
+              class="px-3 py-1 bg-cyan-600 hover:bg-cyan-500 text-white rounded-lg text-[11px] font-bold transition">
+              Appliquer au formulaire
+            </button>
+          </div>
+        </div>
       </div>
 
       <form id="newExamForm" onsubmit="saveNewExam(event)" class="space-y-4 text-xs">
@@ -948,14 +994,71 @@
       }
     }
 
-    // MODALE AJOUT SESSION
+    // MODALE AJOUT SESSION & CHARGEMENT DE CALENDRIER
     function openAddExamModal() {
       document.getElementById('addExamModal').classList.remove('hidden');
+      document.getElementById('mAddDateDebut').value = selectedDate;
+      document.getElementById('mAddDateFin').value = selectedDate;
     }
 
     function closeAddExamModal() {
       document.getElementById('addExamModal').classList.add('hidden');
       document.getElementById('newExamForm').reset();
+      const pasteArea = document.getElementById('pasteCalendarArea');
+      if (pasteArea) pasteArea.classList.add('hidden');
+    }
+
+    function loadExamPreset(presetKey) {
+      if (presetKey === 'MIC_L2_P11_S1') {
+        document.getElementById('mAddFiliere').value = "Multimédia, Internet et Communication (MIC)";
+        document.getElementById('mAddPromo').value = "Licence 2 / Promo 11";
+        document.getElementById('mAddSession').value = "Semestre 3 – 2ème session (Rattrapage)";
+        document.getElementById('mAddMatieres').value = "Fondamentaux de la communication, Dessin assisté par ordinateur (DAO), Développement web 3 (PHP/Mysql)";
+        document.getElementById('mAddDateDebut').value = "2026-11-16";
+        document.getElementById('mAddDateFin').value = "2026-11-16";
+      } else if (presetKey === 'MIC_L2_P11_S2') {
+        document.getElementById('mAddFiliere').value = "Multimédia, Internet et Communication (MIC)";
+        document.getElementById('mAddPromo').value = "Licence 2 / Promo 11";
+        document.getElementById('mAddSession').value = "Semestre 3 – 2ème session (Rattrapage)";
+        document.getElementById('mAddMatieres').value = "Technologie Web 3 (Introduction javascript), Community management, Réalisation audiovisuelle numérique, Lega Tech, Service sur réseaux";
+        document.getElementById('mAddDateDebut').value = "2026-11-17";
+        document.getElementById('mAddDateFin').value = "2026-11-17";
+      }
+    }
+
+    function togglePasteCalendarArea() {
+      const pasteArea = document.getElementById('pasteCalendarArea');
+      pasteArea.classList.toggle('hidden');
+    }
+
+    function parseAndFillPastedCalendar() {
+      const text = document.getElementById('pasteCalendarInput').value.trim();
+      if (!text) {
+        alert("Veuillez coller le texte ou le résumé d'un calendrier.");
+        return;
+      }
+
+      // Si le format contient des séparateurs | ou retour à la ligne
+      if (text.includes('|')) {
+        const parts = text.split('|').map(p => p.trim());
+        if (parts[0]) document.getElementById('mAddFiliere').value = parts[0];
+        if (parts[1]) document.getElementById('mAddPromo').value = parts[1];
+        if (parts[2]) document.getElementById('mAddSession').value = parts[2];
+        if (parts[3]) document.getElementById('mAddMatieres').value = parts[3];
+      } else {
+        // Déduction par mots-clés
+        document.getElementById('mAddMatieres').value = text;
+        if (text.toLowerCase().includes('mic') || text.toLowerCase().includes('multimédia')) {
+          document.getElementById('mAddFiliere').value = "Multimédia, Internet et Communication (MIC)";
+          document.getElementById('mAddPromo').value = "Licence 2 / Promo 11";
+        }
+        if (text.toLowerCase().includes('rattrapage')) {
+          document.getElementById('mAddSession').value = "2ème session (Rattrapage)";
+        }
+      }
+
+      document.getElementById('pasteCalendarArea').classList.add('hidden');
+      alert("Champs du formulaire pré-remplis à partir du calendrier !");
     }
 
     function saveNewExam(event) {

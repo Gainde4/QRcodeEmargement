@@ -12,6 +12,10 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
   <!-- Tesseract.js pour l'OCR / lecture automatique de photos de calendrier -->
   <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+  <!-- PDF.js pour lecture et extraction de calendriers PDF -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <!-- html2pdf.js pour téléchargement direct de la feuille d'émargement en PDF -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
   <!-- FontAwesome Icons -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <style>
@@ -97,9 +101,23 @@
         </div>
       </div>
 
+      <!-- Boutons de téléchargement du Code QR (Image PNG & Affiche PDF) -->
+      <div class="mt-5 flex flex-wrap items-center justify-center gap-2.5 z-10">
+        <button onclick="downloadQrCodeImage()" 
+          class="px-3.5 py-2 bg-slate-900/90 hover:bg-slate-800 border border-slate-700 hover:border-cyan-500/50 text-cyan-300 text-xs font-semibold rounded-xl transition flex items-center gap-2 shadow-lg">
+          <i class="fa-solid fa-file-arrow-down text-cyan-400"></i>
+          <span>Télécharger QR Code (Image PNG)</span>
+        </button>
+        <button onclick="downloadQrCodePosterPdf()" 
+          class="px-3.5 py-2 bg-slate-900/90 hover:bg-slate-800 border border-slate-700 hover:border-emerald-500/50 text-emerald-300 text-xs font-semibold rounded-xl transition flex items-center gap-2 shadow-lg">
+          <i class="fa-solid fa-file-pdf text-emerald-400"></i>
+          <span>Télécharger Affiche Salle (PDF)</span>
+        </button>
+      </div>
+
       <!-- Bouton d'aide pour tester le scan directement -->
       <button onclick="showStudentFormView()" 
-        class="mt-6 text-xs text-slate-400 hover:text-cyan-400 transition flex items-center gap-1.5 underline underline-offset-4">
+        class="mt-4 text-xs text-slate-400 hover:text-cyan-400 transition flex items-center gap-1.5 underline underline-offset-4">
         <i class="fa-solid fa-mobile-screen"></i>
         <span>Tester l'interface étudiant sur cet appareil</span>
       </button>
@@ -251,22 +269,39 @@
 
         <!-- Boutons d'exportation -->
         <div class="flex flex-wrap items-center gap-2">
+          <button onclick="exportToPdfFile()" 
+            class="px-3.5 py-2 rounded-xl bg-gradient-to-r from-rose-600 to-pink-600 hover:from-rose-500 hover:to-pink-500 text-white font-bold text-xs shadow-lg shadow-rose-600/20 transition flex items-center gap-1.5"
+            title="Télécharger directement la feuille d'émargement officielle en fichier PDF">
+            <i class="fa-solid fa-file-pdf"></i>
+            <span>Télécharger PDF</span>
+          </button>
+
           <button onclick="exportToExcel()" 
-            class="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-lg shadow-emerald-600/20 transition flex items-center gap-1.5">
+            class="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-lg shadow-emerald-600/20 transition flex items-center gap-1.5"
+            title="Exporter la feuille de présence en tableur Excel">
             <i class="fa-solid fa-file-excel"></i>
-            <span>Export Excel (.xlsx)</span>
+            <span>Excel (.xlsx)</span>
           </button>
 
           <button onclick="exportToWordDoc()" 
-            class="px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs shadow-lg shadow-blue-600/20 transition flex items-center gap-1.5">
+            class="px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs shadow-lg shadow-blue-600/20 transition flex items-center gap-1.5"
+            title="Générer le Procès-Verbal officiel au format Word avec en-tête UN-CHK">
             <i class="fa-solid fa-file-word"></i>
             <span>PV Word (.doc)</span>
           </button>
 
+          <button onclick="exportToCsv()" 
+            class="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 font-semibold text-xs transition flex items-center gap-1.5"
+            title="Télécharger au format CSV">
+            <i class="fa-solid fa-file-csv"></i>
+            <span>CSV</span>
+          </button>
+
           <button onclick="exportToPrintPdf()" 
-            class="px-3.5 py-2 rounded-xl bg-slate-700 hover:bg-slate-600 text-white font-bold text-xs transition flex items-center gap-1.5">
+            class="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 font-semibold text-xs transition flex items-center gap-1.5"
+            title="Imprimer ou enregistrer via la boîte de dialogue d'impression">
             <i class="fa-solid fa-print"></i>
-            <span>Imprimer / PDF</span>
+            <span>Imprimer</span>
           </button>
 
           <button onclick="clearCurrentDayAttendances()" 
@@ -500,15 +535,33 @@
             <span class="text-[9px] text-slate-500 font-mono">1-clic</span>
           </div>
 
-          <!-- Bouton IMPORTER UNE PHOTO DU CALENDRIER -->
+          <!-- ZONE DE GLISSER-DÉPOSER (IMAGES & PDF) -->
           <div class="pt-0.5">
-            <label for="calendarPhotoInput" 
-              class="w-full flex items-center justify-center gap-2 px-3 py-2 bg-gradient-to-r from-cyan-600/20 to-teal-600/20 hover:from-cyan-600/30 hover:to-teal-600/30 border border-cyan-500/40 text-cyan-300 rounded-xl cursor-pointer transition font-semibold text-[11px]">
-              <i class="fa-solid fa-camera text-xs"></i>
-              <span>📸 Importer une photo de calendrier</span>
-            </label>
-            <input type="file" id="calendarPhotoInput" accept="image/*" class="hidden" onchange="handleCalendarPhotoUpload(event)" />
-            <div id="ocrStatusMsg" class="hidden text-[10px] text-amber-300 font-mono mt-1 text-center animate-pulse"></div>
+            <div id="calendarDropZone" 
+              ondragover="handleCalendarDragOver(event)" 
+              ondragleave="handleCalendarDragLeave(event)" 
+              ondrop="handleCalendarDrop(event)"
+              onclick="document.getElementById('calendarFileInput').click()"
+              class="relative border-2 border-dashed border-cyan-500/50 hover:border-cyan-400 bg-slate-900/90 hover:bg-cyan-950/30 rounded-xl p-3 text-center cursor-pointer transition-all duration-200 group">
+              
+              <input type="file" id="calendarFileInput" accept="image/*,application/pdf,.pdf" class="hidden" onchange="handleCalendarFileUpload(event)" />
+              
+              <div class="flex flex-col items-center justify-center gap-1 pointer-events-none">
+                <div class="w-8 h-8 rounded-full bg-cyan-500/20 text-cyan-300 flex items-center justify-center text-sm group-hover:scale-110 transition">
+                  <i class="fa-solid fa-cloud-arrow-up"></i>
+                </div>
+                <div class="text-[11px] font-bold text-cyan-300">
+                  Glissez-déposez ici votre calendrier
+                </div>
+                <div class="text-[10px] text-slate-400 flex items-center justify-center gap-1 flex-wrap">
+                  <span>ou cliquez pour parcourir</span>
+                  <span class="text-slate-600">•</span>
+                  <span class="text-emerald-400 font-semibold font-mono">Image ou PDF</span>
+                </div>
+              </div>
+
+              <div id="ocrStatusMsg" class="hidden text-[10px] text-amber-300 font-mono mt-2 text-center animate-pulse border-t border-slate-800 pt-1.5"></div>
+            </div>
           </div>
 
           <!-- Modèles rapides UN-CHK -->
@@ -1049,49 +1102,147 @@
       pasteArea.classList.toggle('hidden');
     }
 
-    async function handleCalendarPhotoUpload(event) {
+    // GESTION DU GLISSER-DÉPOSER (DRAG & DROP) & MULTI-FORMATS
+    function handleCalendarDragOver(e) {
+      e.preventDefault();
+      e.stopPropagation();
+      const zone = document.getElementById('calendarDropZone');
+      if (zone) {
+        zone.classList.add('border-emerald-400', 'bg-emerald-950/40', 'ring-2', 'ring-emerald-500/30');
+      }
+    }
+
+    function handleCalendarDragLeave(e) {
+      e.preventDefault();
+      e.stopPropagation();
+      const zone = document.getElementById('calendarDropZone');
+      if (zone) {
+        zone.classList.remove('border-emerald-400', 'bg-emerald-950/40', 'ring-2', 'ring-emerald-500/30');
+      }
+    }
+
+    function handleCalendarDrop(e) {
+      e.preventDefault();
+      e.stopPropagation();
+      const zone = document.getElementById('calendarDropZone');
+      if (zone) {
+        zone.classList.remove('border-emerald-400', 'bg-emerald-950/40', 'ring-2', 'ring-emerald-500/30');
+      }
+      if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+        processCalendarFile(e.dataTransfer.files[0]);
+      }
+    }
+
+    function handleCalendarFileUpload(event) {
       const file = event.target.files && event.target.files[0];
+      if (file) {
+        processCalendarFile(file);
+      }
+    }
+
+    function handleCalendarPhotoUpload(event) {
+      handleCalendarFileUpload(event);
+    }
+
+    async function processCalendarFile(file) {
       if (!file) return;
 
       const statusMsg = document.getElementById('ocrStatusMsg');
       statusMsg.classList.remove('hidden');
-      statusMsg.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-1"></i> Chargement du moteur OCR...`;
+      statusMsg.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-1"></i> Fichier reçu : ${escapeHtml(file.name)}...`;
+
+      const isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
 
       try {
-        if (typeof Tesseract === 'undefined') {
-          throw new Error("Bibliothèque Tesseract OCR non accessible. Vérifiez votre connexion.");
-        }
+        if (isPdf) {
+          statusMsg.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-1"></i> Lecture du PDF avec PDF.js...`;
 
-        const result = await Tesseract.recognize(file, 'fra+eng', {
-          logger: m => {
-            if (m.status === 'recognizing text') {
-              const pct = Math.round((m.progress || 0) * 100);
-              statusMsg.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-1"></i> Numérisation de la photo : ${pct}%`;
-            }
+          if (typeof pdfjsLib === 'undefined') {
+            throw new Error("Bibliothèque PDF.js non disponible. Vérifiez votre connexion.");
           }
-        });
+          pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
-        const recognizedText = (result && result.data && result.data.text) ? result.data.text.trim() : '';
+          const arrayBuffer = await file.arrayBuffer();
+          const pdfDoc = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+          
+          let fullText = '';
+          for (let pageNum = 1; pageNum <= pdfDoc.numPages; pageNum++) {
+            statusMsg.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-1"></i> Extraction texte PDF (Page ${pageNum}/${pdfDoc.numPages})...`;
+            const page = await pdfDoc.getPage(pageNum);
+            const textContent = await page.getTextContent();
+            const pageStr = textContent.items.map(item => item.str).join(' ');
+            fullText += pageStr + '\n';
+          }
 
-        if (!recognizedText) {
-          statusMsg.innerHTML = `<span class="text-rose-400">Aucun texte lisible détecté sur cette photo.</span>`;
-          setTimeout(() => statusMsg.classList.add('hidden'), 4000);
-          return;
+          if (fullText.trim().length > 30) {
+            statusMsg.innerHTML = `<span class="text-emerald-400 font-bold"><i class="fa-solid fa-check mr-1"></i> Calendrier PDF analysé avec succès !</span>`;
+            parseAndFillOcrText(fullText);
+            setTimeout(() => statusMsg.classList.add('hidden'), 3500);
+            return;
+          }
+
+          // Si le PDF est un document scanné sous forme d'image
+          statusMsg.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-1"></i> PDF scanné : rendu image haute résolution...`;
+          const page = await pdfDoc.getPage(1);
+          const viewport = page.getViewport({ scale: 2.0 });
+          const offCanvas = document.createElement('canvas');
+          const offCtx = offCanvas.getContext('2d');
+          offCanvas.width = viewport.width;
+          offCanvas.height = viewport.height;
+
+          await page.render({ canvasContext: offCtx, viewport: viewport }).promise;
+
+          statusMsg.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-1"></i> Lancement OCR Tesseract sur le PDF scanné...`;
+          const result = await Tesseract.recognize(offCanvas, 'fra+eng', {
+            logger: m => {
+              if (m.status === 'recognizing text') {
+                const pct = Math.round((m.progress || 0) * 100);
+                statusMsg.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-1"></i> Numérisation OCR : ${pct}%`;
+              }
+            }
+          });
+
+          const recText = result && result.data && result.data.text ? result.data.text.trim() : '';
+          if (recText) {
+            statusMsg.innerHTML = `<span class="text-emerald-400 font-bold"><i class="fa-solid fa-check mr-1"></i> OCR PDF terminé avec succès !</span>`;
+            parseAndFillOcrText(recText);
+          } else {
+            statusMsg.innerHTML = `<span class="text-amber-400">Aucun texte lisible trouvé dans ce PDF.</span>`;
+          }
+          setTimeout(() => statusMsg.classList.add('hidden'), 3500);
+
+        } else {
+          // Fichier image (PNG, JPG, JPEG, WEBP, BMP, etc.)
+          statusMsg.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-1"></i> Initialisation de l'analyse OCR sur l'image...`;
+          if (typeof Tesseract === 'undefined') {
+            throw new Error("Bibliothèque OCR non accessible.");
+          }
+
+          const result = await Tesseract.recognize(file, 'fra+eng', {
+            logger: m => {
+              if (m.status === 'recognizing text') {
+                const pct = Math.round((m.progress || 0) * 100);
+                statusMsg.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-1"></i> Analyse OCR Image : ${pct}%`;
+              }
+            }
+          });
+
+          const recText = result && result.data && result.data.text ? result.data.text.trim() : '';
+          if (!recText) {
+            statusMsg.innerHTML = `<span class="text-rose-400">Aucun texte lisible détecté sur cette photo.</span>`;
+            setTimeout(() => statusMsg.classList.add('hidden'), 4000);
+            return;
+          }
+
+          statusMsg.innerHTML = `<span class="text-emerald-400 font-bold"><i class="fa-solid fa-check mr-1"></i> Image analysée avec succès !</span>`;
+          parseAndFillOcrText(recText);
+          setTimeout(() => statusMsg.classList.add('hidden'), 3500);
         }
-
-        statusMsg.innerHTML = `<span class="text-emerald-400 font-bold"><i class="fa-solid fa-check mr-1"></i> Analyse terminée ! Champs renseignés.</span>`;
-        parseAndFillOcrText(recognizedText);
-
-        setTimeout(() => {
-          statusMsg.classList.add('hidden');
-        }, 3500);
 
       } catch (err) {
-        console.error("Erreur OCR :", err);
-        statusMsg.innerHTML = `<span class="text-rose-400">Erreur OCR : ${err.message || 'Échec'}</span>`;
+        console.error("Erreur lecture calendrier :", err);
+        statusMsg.innerHTML = `<span class="text-rose-400">Erreur : ${err.message || 'Échec d\'analyse'}</span>`;
         setTimeout(() => statusMsg.classList.add('hidden'), 4500);
-      } finally {
-        event.target.value = '';
       }
     }
 
@@ -1570,6 +1721,271 @@
       const promoTag = filterPromoVal !== "ALL" ? `_${sanitizeFilename(filterPromoVal)}` : "";
       const enoTag = filterEnoVal !== "ALL" ? `_${sanitizeFilename(filterEnoVal)}` : "";
       link.download = `PV_Emargement_UNCHK_${filiereTag}${promoTag}${enoTag}_${selectedDate}.doc`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    }
+
+    // TÉLÉCHARGEMENT DU QR CODE EN IMAGE (PNG)
+    function downloadQrCodeImage() {
+      const container = document.getElementById('projectorQrContainer');
+      const canvas = container.querySelector('canvas');
+      const img = container.querySelector('img');
+
+      let dataUrl = "";
+      if (canvas) {
+        dataUrl = canvas.toDataURL("image/png");
+      } else if (img && img.src) {
+        dataUrl = img.src;
+      }
+
+      if (!dataUrl) {
+        alert("Le Code QR n'est pas encore généré.");
+        return;
+      }
+
+      const link = document.createElement('a');
+      link.href = dataUrl;
+      link.download = `QRCode_Emargement_UNCHK_${selectedDate}.png`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+
+    // TÉLÉCHARGEMENT DE L'AFFICHE QR CODE EN PDF
+    function downloadQrCodePosterPdf() {
+      const container = document.getElementById('projectorQrContainer');
+      const canvas = container.querySelector('canvas');
+      const img = container.querySelector('img');
+
+      let qrSrc = "";
+      if (canvas) {
+        qrSrc = canvas.toDataURL("image/png");
+      } else if (img && img.src) {
+        qrSrc = img.src;
+      }
+
+      if (!qrSrc) {
+        alert("Le Code QR n'est pas encore prêt.");
+        return;
+      }
+
+      const exams = allExamsByDate[selectedDate] || [];
+      const examSummary = exams.map(e => `${e.filiere} (${e.promo})`).join(' • ') || "Sessions d'évaluation du jour";
+
+      const posterDiv = document.createElement('div');
+      posterDiv.style.padding = "30px 40px";
+      posterDiv.style.textAlign = "center";
+      posterDiv.style.fontFamily = "Arial, sans-serif";
+      posterDiv.style.backgroundColor = "#ffffff";
+      posterDiv.style.color = "#0f172a";
+
+      posterDiv.innerHTML = `
+        <div style="border-bottom: 3px solid #0f766e; padding-bottom: 12px; margin-bottom: 20px;">
+          <h2 style="margin: 0; color: #047857; font-size: 19px; font-weight: 800; text-transform: uppercase;">UNIVERSITÉ NUMÉRIQUE CHEIKH HAMIDOU KANE (UN-CHK)</h2>
+          <p style="margin: 4px 0 0; color: #475569; font-size: 13px;">Réseau National des Espaces Numériques Ouverts (ENO)</p>
+          <p style="margin: 3px 0 0; color: #0284c7; font-style: italic; font-size: 13px; font-weight: bold;">Foo nekk foofu la</p>
+        </div>
+        
+        <h1 style="font-size: 24px; color: #0f172a; margin: 15px 0 6px; font-weight: 900; letter-spacing: 1px;">ÉMARGEMENT NUMÉRIQUE DE SALLE</h1>
+        <p style="font-size: 14px; color: #334155; margin: 0 0 8px;"><strong>Date de composition :</strong> ${selectedDate}</p>
+        <p style="font-size: 13px; color: #0f766e; margin: 0 0 25px; font-weight: bold; background: #f0fdf4; padding: 8px 12px; border-radius: 8px; border: 1px solid #bbf7d0;">
+          ${escapeHtml(examSummary)}
+        </p>
+
+        <div style="display: inline-block; padding: 18px; border: 4px solid #0f172a; border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); margin-bottom: 25px;">
+          <img src="${qrSrc}" style="width: 280px; height: 280px; display: block;" alt="Code QR d'émargement" />
+        </div>
+
+        <div style="background-color: #f8fafc; border: 2px dashed #94a3b8; border-radius: 12px; padding: 15px 20px; max-width: 480px; margin: 0 auto; text-align: left;">
+          <h4 style="margin: 0 0 8px; color: #0f172a; font-size: 13px; font-weight: bold;">📌 CONSIGNES POUR L'ÉTUDIANT :</h4>
+          <ol style="margin: 0; padding-left: 20px; font-size: 12px; color: #334155; line-height: 1.6;">
+            <li>Ouvrez l'appareil photo de votre smartphone.</li>
+            <li>Pointez l'objectif vers ce QR Code pour accéder à la feuille d'émargement.</li>
+            <li>Sélectionnez votre ENO de composition et vos épreuves, puis signez sur l'écran.</li>
+          </ol>
+        </div>
+      `;
+
+      if (typeof html2pdf !== 'undefined') {
+        const opt = {
+          margin: 10,
+          filename: `Affiche_QRCode_UNCHK_${selectedDate}.pdf`,
+          image: { type: 'jpeg', quality: 0.98 },
+          html2canvas: { scale: 2 },
+          jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+        };
+        html2pdf().set(opt).from(posterDiv).save();
+      } else {
+        window.print();
+      }
+    }
+
+    // TÉLÉCHARGEMENT DIRECT DE LA FEUILLE D'ÉMARGEMENT EN PDF
+    function exportToPdfFile() {
+      const list = getFilteredAttendances();
+      if (list.length === 0) {
+        alert("Aucun émargement à exporter pour cette sélection.");
+        return;
+      }
+
+      const exams = allExamsByDate[selectedDate] || [];
+      const filterFiliereVal = document.getElementById('filterFiliereSelect').value;
+      const filterPromoVal = document.getElementById('filterPromoSelect').value;
+      const filterEnoVal = document.getElementById('filterEnoSelect').value;
+
+      let headerFiliere = "TOUTES LES FILIÈRES";
+      if (filterFiliereVal !== "ALL" && filterPromoVal !== "ALL") {
+        headerFiliere = `${escapeHtml(filterFiliereVal)} - ${escapeHtml(filterPromoVal)}`;
+      } else if (filterFiliereVal !== "ALL") {
+        headerFiliere = `${escapeHtml(filterFiliereVal)} - Toutes promos`;
+      } else if (filterPromoVal !== "ALL") {
+        headerFiliere = `TOUTES FILIÈRES - ${escapeHtml(filterPromoVal)}`;
+      }
+
+      let tableRowsHtml = "";
+      list.forEach((a, i) => {
+        const ex = exams.find(e => e.id === a.examId) || {};
+        tableRowsHtml += `
+          <tr style="border-bottom: 1px solid #cbd5e1; font-size: 10px;">
+            <td style="padding: 6px; text-align: center; font-family: monospace;">${i + 1}</td>
+            <td style="padding: 6px; font-weight: bold; color: #0f172a;">${escapeHtml(a.fullName)}</td>
+            <td style="padding: 6px; font-family: monospace; font-weight: bold; color: #047857;">${escapeHtml(a.ine)}</td>
+            <td style="padding: 6px; font-weight: bold; color: #d97706;">${escapeHtml(a.eno || '')}</td>
+            <td style="padding: 6px;">${escapeHtml(ex.filiere || '')} - ${escapeHtml(ex.promo || '')}</td>
+            <td style="padding: 6px; color: #0f766e; font-weight: 600;">${escapeHtml((a.matieresChosen || []).join(', '))}</td>
+            <td style="padding: 6px; font-family: monospace; font-size: 9px; color: #475569;">${escapeHtml(a.email)}</td>
+            <td style="padding: 6px; text-align: center; font-family: monospace;">${escapeHtml(a.entryTime)}</td>
+            <td style="padding: 6px; text-align: center; font-family: monospace;">${escapeHtml(a.exitTime || '--:--')}</td>
+            <td style="padding: 6px; text-align: center;">
+              ${a.signature ? `<img src="${a.signature}" style="height: 18px; max-width: 60px; object-fit: contain;" />` : `<span style="color: #047857; font-weight: bold;">✓ Signé</span>`}
+            </td>
+          </tr>
+        `;
+      });
+
+      const reportDiv = document.createElement('div');
+      reportDiv.style.padding = "20px";
+      reportDiv.style.fontFamily = "Arial, sans-serif";
+      reportDiv.style.color = "#0f172a";
+      reportDiv.style.backgroundColor = "#ffffff";
+
+      reportDiv.innerHTML = `
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #047857; padding-bottom: 10px; margin-bottom: 15px;">
+          <div>
+            <h4 style="margin: 0; color: #1e293b; font-size: 11px;">RÉPUBLIQUE DU SÉNÉGAL</h4>
+            <h5 style="margin: 2px 0; font-weight: normal; font-size: 10px; color: #475569;">Ministère de l'Enseignement Supérieur, de la Recherche et de l'Innovation</h5>
+            <h3 style="margin: 3px 0; color: #047857; font-size: 14px; font-weight: 800;">UNIVERSITÉ NUMÉRIQUE CHEIKH HAMIDOU KANE (UN-CHK)</h3>
+            <p style="margin: 0; font-size: 10px; color: #64748b;">Direction de la Formation et de l'Ingénierie Pédagogique (DFIP)</p>
+          </div>
+          <div style="text-align: right; font-size: 10px;">
+            <p style="font-style: italic; color: #0284c7; margin: 0; font-weight: bold;">Foo nekk foofu la</p>
+            <p style="margin: 3px 0 0;"><strong>Date :</strong> ${selectedDate}</p>
+            <p style="margin: 2px 0 0;"><strong>Espace :</strong> ${filterEnoVal !== 'ALL' ? escapeHtml(filterEnoVal) : 'Réseau National des ENO'}</p>
+          </div>
+        </div>
+
+        <div style="text-align: center; margin-bottom: 12px;">
+          <h2 style="margin: 0 0 3px; font-size: 15px; color: #0f172a; text-transform: uppercase;">PROCÈS-VERBAL D'ÉMARGEMENT OFFICIEL</h2>
+          <p style="margin: 0; font-size: 11px; color: #0f766e; font-weight: bold;">${headerFiliere}</p>
+          <p style="margin: 3px 0 0; font-size: 10px; color: #64748b;">Effectif total émargé : <strong>${list.length} étudiant(s)</strong></p>
+        </div>
+
+        <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
+          <thead>
+            <tr style="background-color: #f1f5f9; border-bottom: 2px solid #94a3b8; font-size: 10px; text-align: left;">
+              <th style="padding: 6px; text-align: center;">#</th>
+              <th style="padding: 6px;">Nom et Prénom</th>
+              <th style="padding: 6px;">Numéro INE</th>
+              <th style="padding: 6px;">ENO</th>
+              <th style="padding: 6px;">Filière / Promo</th>
+              <th style="padding: 6px;">Matière(s) Composée(s)</th>
+              <th style="padding: 6px;">Email institutionnel</th>
+              <th style="padding: 6px; text-align: center;">Entrée</th>
+              <th style="padding: 6px; text-align: center;">Sortie</th>
+              <th style="padding: 6px; text-align: center;">Signature</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${tableRowsHtml}
+          </tbody>
+        </table>
+
+        <div style="display: flex; justify-content: space-between; margin-top: 30px; font-size: 10px;">
+          <div>
+            <p style="margin: 0 0 40px;"><strong>Visa du Responsable d'ENO :</strong></p>
+            <p style="margin: 0; border-top: 1px dotted #94a3b8; width: 180px;"></p>
+          </div>
+          <div style="text-align: right;">
+            <p style="margin: 0 0 40px;"><strong>Visa des Surveillants de Salle :</strong></p>
+            <p style="margin: 0; border-top: 1px dotted #94a3b8; width: 180px; display: inline-block;"></p>
+          </div>
+        </div>
+      `;
+
+      const filiereTag = filterFiliereVal !== "ALL" ? sanitizeFilename(filterFiliereVal) : "Toutes_Filieres";
+      const promoTag = filterPromoVal !== "ALL" ? `_${sanitizeFilename(filterPromoVal)}` : "";
+      const enoTag = filterEnoVal !== "ALL" ? `_${sanitizeFilename(filterEnoVal)}` : "";
+      const pdfFileName = `PV_Emargement_UNCHK_${filiereTag}${promoTag}${enoTag}_${selectedDate}.pdf`;
+
+      if (typeof html2pdf !== 'undefined') {
+        const opt = {
+          margin: 8,
+          filename: pdfFileName,
+          image: { type: 'jpeg', quality: 0.98 },
+          html2canvas: { scale: 2 },
+          jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' }
+        };
+        html2pdf().set(opt).from(reportDiv).save();
+      } else {
+        window.print();
+      }
+    }
+
+    // EXPORT AU FORMAT CSV
+    function exportToCsv() {
+      const list = getFilteredAttendances();
+      if (list.length === 0) {
+        alert("Aucun émargement à exporter pour cette sélection.");
+        return;
+      }
+      const exams = allExamsByDate[selectedDate] || [];
+      const filterFiliereVal = document.getElementById('filterFiliereSelect').value;
+      const filterPromoVal = document.getElementById('filterPromoSelect').value;
+      const filterEnoVal = document.getElementById('filterEnoSelect').value;
+
+      const headers = ["N°", "Nom et Prénom", "Numéro INE", "ENO", "Filière", "Promotion", "Session", "Matières Composées", "Date", "Heure Entrée", "Heure Sortie", "Email Institutionnel"];
+      const csvRows = [headers.join(";")];
+
+      list.forEach((a, i) => {
+        const ex = exams.find(e => e.id === a.examId) || {};
+        const row = [
+          i + 1,
+          `"${(a.fullName || '').replace(/"/g, '""')}"`,
+          `"${(a.ine || '').replace(/"/g, '""')}"`,
+          `"${(a.eno || '').replace(/"/g, '""')}"`,
+          `"${(ex.filiere || '').replace(/"/g, '""')}"`,
+          `"${(ex.promo || '').replace(/"/g, '""')}"`,
+          `"${(ex.session || '').replace(/"/g, '""')}"`,
+          `"${((a.matieresChosen || []).join(', ')).replace(/"/g, '""')}"`,
+          selectedDate,
+          a.entryTime,
+          a.exitTime || "",
+          `"${(a.email || '').replace(/"/g, '""')}"`
+        ];
+        csvRows.push(row.join(";"));
+      });
+
+      const csvString = '\ufeff' + csvRows.join("\r\n");
+      const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      const filiereTag = filterFiliereVal !== "ALL" ? sanitizeFilename(filterFiliereVal) : "Toutes_Filieres";
+      const promoTag = filterPromoVal !== "ALL" ? `_${sanitizeFilename(filterPromoVal)}` : "";
+      const enoTag = filterEnoVal !== "ALL" ? `_${sanitizeFilename(filterEnoVal)}` : "";
+      link.download = `Emargement_UNCHK_${filiereTag}${promoTag}${enoTag}_${selectedDate}.csv`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);

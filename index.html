@@ -16,6 +16,8 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
   <!-- html2pdf.js pour téléchargement direct de la feuille d'émargement en PDF -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+  <!-- Paho MQTT WebSocket pour synchronisation temps réel entre smartphones et écran surveillant -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.0.1/mqttws31.min.js"></script>
   <!-- FontAwesome Icons -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <style>
@@ -55,16 +57,24 @@
         </div>
       </div>
 
-      <!-- Indicateur de date & bouton d'accès au portail surveillant -->
-      <div class="flex items-center gap-3">
-        <div class="bg-slate-900 border border-slate-800 px-4 py-2 rounded-2xl text-xs text-slate-300 font-mono flex items-center gap-2">
+      <!-- Indicateur de synchronisation, date & accès surveillant -->
+      <div class="flex flex-wrap items-center gap-2.5">
+        <!-- Badge de synchronisation en direct -->
+        <div class="bg-slate-900/90 border border-emerald-500/30 px-3 py-2 rounded-2xl text-xs font-mono flex items-center gap-2 shadow-inner">
+          <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+          <span id="projLiveStatus" class="text-emerald-400 font-semibold">Direct : Connecté</span>
+          <span class="text-slate-600">•</span>
+          <span id="projRoomCodeBadge" class="text-cyan-300 font-bold">Salle 1</span>
+        </div>
+
+        <div class="bg-slate-900 border border-slate-800 px-3.5 py-2 rounded-2xl text-xs text-slate-300 font-mono flex items-center gap-2">
           <i class="fa-solid fa-calendar-day text-emerald-400"></i>
           <span id="projDateDisplay">16 novembre 2026</span>
         </div>
         
         <!-- Bouton discret ouvrant l'interface complète du surveillant -->
         <button onclick="openSupervisorView()" 
-          class="px-4 py-2 bg-slate-900 hover:bg-slate-800 border border-slate-700 hover:border-slate-600 text-slate-200 text-xs font-semibold rounded-2xl transition flex items-center gap-2 shadow-lg shadow-black/40">
+          class="px-3.5 py-2 bg-slate-900 hover:bg-slate-800 border border-slate-700 hover:border-slate-600 text-slate-200 text-xs font-semibold rounded-2xl transition flex items-center gap-2 shadow-lg shadow-black/40">
           <i class="fa-solid fa-user-shield text-emerald-400"></i>
           <span>Espace Surveillant</span>
         </button>
@@ -161,6 +171,16 @@
 
       <!-- Contrôles rapides et retour à l'écran de projection -->
       <div class="flex flex-wrap items-center gap-2.5">
+        <!-- Badge de synchronisation en direct & sélection de salle -->
+        <div class="flex items-center gap-2 bg-slate-900 border border-emerald-500/30 px-3 py-1.5 rounded-xl text-xs font-mono">
+          <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+          <span class="text-emerald-400 font-semibold" id="syncStatusText">Direct : Connecté</span>
+          <span class="text-slate-600">•</span>
+          <button type="button" onclick="promptChangeRoomCode()" class="text-cyan-300 hover:text-cyan-200 underline font-bold" title="Cliquer pour changer le code ou nom de salle">
+            <span id="roomNameDisplay">Salle 1</span>
+          </button>
+        </div>
+
         <div class="flex items-center gap-2 bg-slate-900 border border-slate-700 px-3 py-1.5 rounded-xl text-xs">
           <i class="fa-solid fa-calendar-days text-emerald-400"></i>
           <span class="text-slate-400">Date :</span>
@@ -656,9 +676,12 @@
   <!-- ========================================================================= -->
   <script>
     let selectedDate = "2026-11-16";
+    let currentRoomCode = localStorage.getItem('signsafe_room_code') || 'UNCHK_SALLE1';
     let allExamsByDate = {};
     let allAttendancesByDate = {};
     let sigCanvas, sigCtx, isDrawing = false;
+    let liveMqttClient = null;
+    let isLiveConnected = false;
 
     window.addEventListener('DOMContentLoaded', () => {
       document.getElementById('selectedDateInput').value = selectedDate;
@@ -668,19 +691,210 @@
       loadPersistedData();
       initSignatureCanvas();
 
-      // Vérifier si l'URL contient un paramètre de scan étudiant
+      // Vérifier si l'URL contient des paramètres de salle ou de scan étudiant
       const urlParams = new URLSearchParams(window.location.search);
+      if (urlParams.has('room')) {
+        currentRoomCode = urlParams.get('room');
+      }
+
+      updateRoomCodeDisplay();
+
       if (urlParams.has('emarger')) {
         const dateParam = urlParams.get('date') || selectedDate;
         selectedDate = dateParam;
         showStudentFormView();
       } else if (urlParams.has('admin')) {
         openSupervisorView();
+        initSupervisorLiveListener();
       } else {
-        // PAR DÉFAUT : AFFICHER UNIQUEMENT L'ÉCRAN DE PROJECTION DU QR CODE
+        // PAR DÉFAUT : AFFICHER L'ÉCRAN DE PROJECTION DU QR CODE ET ÉCOUTER EN DIRECT
         showProjectorView();
+        initSupervisorLiveListener();
       }
     });
+
+    function updateRoomCodeDisplay() {
+      const roomBadge = document.getElementById('projRoomCodeBadge');
+      if (roomBadge) roomBadge.innerText = currentRoomCode;
+      const roomName = document.getElementById('roomNameDisplay');
+      if (roomName) roomName.innerText = currentRoomCode;
+    }
+
+    function promptChangeRoomCode() {
+      const newRoom = prompt("Code ou Nom de votre Salle / Espace d'examen (ex: SALLE1, ENO_THIES_A) :", currentRoomCode);
+      if (newRoom && newRoom.trim().length > 0) {
+        currentRoomCode = sanitizeFilename(newRoom.trim().toUpperCase());
+        localStorage.setItem('signsafe_room_code', currentRoomCode);
+        updateRoomCodeDisplay();
+        renderProjectorScreen();
+        if (liveMqttClient) {
+          try { liveMqttClient.disconnect(); } catch(e) {}
+        }
+        initSupervisorLiveListener();
+      }
+    }
+
+    // Carillon sonore Web Audio lors d'un émargement reçu
+    function playChimeSound() {
+      try {
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        if (!AudioContext) return;
+        const ctx = new AudioContext();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(587.33, ctx.currentTime); // Ré (D5)
+        osc.frequency.exponentialRampToValueAtTime(880, ctx.currentTime + 0.12); // La (A5)
+
+        gain.gain.setValueAtTime(0.2, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.35);
+
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start();
+        osc.stop(ctx.currentTime + 0.35);
+      } catch(e) {}
+    }
+
+    // Notification visuelle Toast flottante
+    function showLiveToast(msg) {
+      let container = document.getElementById('liveToastContainer');
+      if (!container) {
+        container = document.createElement('div');
+        container.id = 'liveToastContainer';
+        container.className = 'fixed bottom-5 right-5 z-50 flex flex-col gap-2 pointer-events-none';
+        document.body.appendChild(container);
+      }
+
+      const toast = document.createElement('div');
+      toast.className = 'pointer-events-auto bg-slate-900 border-2 border-emerald-500 text-white px-4 py-3 rounded-2xl shadow-2xl flex items-center gap-3 transition-all duration-300 transform translate-y-2 opacity-0 font-sans text-xs';
+      toast.innerHTML = `
+        <div class="w-8 h-8 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-sm shrink-0">
+          <i class="fa-solid fa-bell"></i>
+        </div>
+        <div class="flex-1 font-semibold">${msg}</div>
+        <button onclick="this.parentElement.remove()" class="text-slate-400 hover:text-white p-1 text-xs">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      `;
+      container.appendChild(toast);
+
+      requestAnimationFrame(() => {
+        toast.classList.remove('translate-y-2', 'opacity-0');
+        toast.classList.add('translate-y-0', 'opacity-100');
+      });
+
+      setTimeout(() => {
+        toast.classList.add('opacity-0', 'translate-y-2');
+        setTimeout(() => toast.remove(), 400);
+      }, 4500);
+    }
+
+    // Réception en direct d'un émargement envoyé par smartphone
+    function onIncomingAttendanceReceived(record) {
+      if (!record || !record.ine) return;
+
+      const targetDate = record.date || selectedDate;
+      if (!allAttendancesByDate[targetDate]) allAttendancesByDate[targetDate] = [];
+      const list = allAttendancesByDate[targetDate];
+
+      const exists = list.some(a => a.ine.toLowerCase() === record.ine.toLowerCase() && (a.examId === record.examId || !a.examId));
+      if (exists) return;
+
+      record._isNew = true;
+      list.unshift(record); // Placer en tête de liste pour visibilité immédiate
+      saveAttendancesData();
+
+      renderSupervisorDashboard();
+      renderProjectorScreen();
+      playChimeSound();
+      showLiveToast(`🎉 Émargement reçu : <strong>${escapeHtml(record.fullName)}</strong> (${escapeHtml(record.eno || 'ENO')})`);
+    }
+
+    // Connexion WebSocket en direct côté surveillant
+    function initSupervisorLiveListener() {
+      if (typeof Paho === 'undefined') return;
+
+      const statusBadge = document.getElementById('syncStatusText');
+      const projStatus = document.getElementById('projLiveStatus');
+      const updateStatus = (text, isOnline) => {
+        if (statusBadge) statusBadge.innerText = text;
+        if (projStatus) {
+          projStatus.className = isOnline ? 'text-emerald-400 font-semibold' : 'text-amber-400 font-semibold';
+          projStatus.innerText = text;
+        }
+      };
+
+      updateStatus('Connexion direct...', false);
+
+      const clientId = 'sup_' + Math.random().toString(16).slice(2);
+      const client = new Paho.MQTT.Client('broker.emqx.io', 8084, '/mqtt', clientId);
+
+      client.onConnectionLost = (resp) => {
+        isLiveConnected = false;
+        updateStatus('Reconnexion...', false);
+        setTimeout(initSupervisorLiveListener, 3500);
+      };
+
+      client.onMessageArrived = (message) => {
+        try {
+          const record = JSON.parse(message.payloadString);
+          onIncomingAttendanceReceived(record);
+        } catch(err) {
+          console.error("Erreur message live :", err);
+        }
+      };
+
+      client.connect({
+        useSSL: true,
+        timeout: 5,
+        keepAliveInterval: 30,
+        onSuccess: () => {
+          isLiveConnected = true;
+          updateStatus('Direct : Connecté', true);
+          const topicRoom = `unchk/emargement/${selectedDate}/${currentRoomCode}`;
+          const topicGlobal = `unchk/emargement/${selectedDate}`;
+          client.subscribe(topicRoom);
+          client.subscribe(topicGlobal);
+        },
+        onFailure: (err) => {
+          updateStatus('Connexion secours...', false);
+          connectSupervisorHivemqFallback(updateStatus);
+        }
+      });
+
+      liveMqttClient = client;
+    }
+
+    function connectSupervisorHivemqFallback(updateStatus) {
+      try {
+        const clientId = 'sup_h_' + Math.random().toString(16).slice(2);
+        const client = new Paho.MQTT.Client('broker.hivemq.com', 8884, '/mqtt', clientId);
+        client.onConnectionLost = () => {
+          updateStatus('Déconnecté', false);
+          setTimeout(initSupervisorLiveListener, 5000);
+        };
+        client.onMessageArrived = (message) => {
+          try {
+            const record = JSON.parse(message.payloadString);
+            onIncomingAttendanceReceived(record);
+          } catch(err) {}
+        };
+        client.connect({
+          useSSL: true,
+          timeout: 5,
+          onSuccess: () => {
+            isLiveConnected = true;
+            updateStatus('Direct (Secours)', true);
+            client.subscribe(`unchk/emargement/${selectedDate}/${currentRoomCode}`);
+            client.subscribe(`unchk/emargement/${selectedDate}`);
+          },
+          onFailure: () => updateStatus('Hors-ligne', false)
+        });
+        liveMqttClient = client;
+      } catch(e) {}
+    }
 
     // Chargement des données persistantes
     function loadPersistedData() {
@@ -851,7 +1065,24 @@
 
       // Générer le QR Code grand format pour l'écran
       const baseUrl = window.location.origin + window.location.pathname;
-      const targetUrl = baseUrl + '?emarger=1&date=' + encodeURIComponent(selectedDate);
+      let targetUrl = baseUrl + '?emarger=1&date=' + encodeURIComponent(selectedDate) + '&room=' + encodeURIComponent(currentRoomCode);
+
+      // Inclure les examens programmés pour chargement direct sur le smartphone
+      if (exams.length > 0) {
+        try {
+          const minimalExams = exams.map(e => ({
+            id: e.id,
+            filiere: e.filiere,
+            promo: e.promo,
+            session: e.session,
+            matieresList: e.matieresList
+          }));
+          const examsJson = JSON.stringify(minimalExams);
+          if (examsJson.length < 1200) {
+            targetUrl += '&exams=' + encodeURIComponent(examsJson);
+          }
+        } catch(e) {}
+      }
 
       const qrContainer = document.getElementById('projectorQrContainer');
       qrContainer.innerHTML = '';
@@ -1026,7 +1257,11 @@
         const matieresText = (item.matieresChosen || []).join(', ');
 
         const tr = document.createElement('tr');
-        tr.className = "hover:bg-slate-800/50 transition";
+        const isHighlight = item._isNew ? 'bg-emerald-950/70 border-l-4 border-emerald-400 transition-all duration-700 animate-pulse' : 'hover:bg-slate-800/50 transition';
+        tr.className = isHighlight;
+        if (item._isNew) {
+          setTimeout(() => { item._isNew = false; }, 6000);
+        }
         tr.innerHTML = `
           <td class="py-3 px-4 font-mono text-slate-500">${index + 1}</td>
           <td class="py-3 px-4 font-bold text-white">${escapeHtml(item.fullName)}</td>
@@ -1405,6 +1640,21 @@
 
     // SETUP FORMULAIRE ÉTUDIANT
     function setupStudentForm() {
+      // Lire les examens et la salle transmis dans l'URL du QR Code
+      const urlParams = new URLSearchParams(window.location.search);
+      if (urlParams.has('exams')) {
+        try {
+          const passedExams = JSON.parse(decodeURIComponent(urlParams.get('exams')));
+          if (Array.isArray(passedExams) && passedExams.length > 0) {
+            allExamsByDate[selectedDate] = passedExams;
+          }
+        } catch(e) {}
+      }
+
+      if (urlParams.has('room')) {
+        currentRoomCode = urlParams.get('room');
+      }
+
       const exams = allExamsByDate[selectedDate] || [];
       const select = document.getElementById('studFiliereSelect');
       select.innerHTML = '';
@@ -1498,20 +1748,132 @@
         matieresChosen,
         entryTime,
         exitTime: exitTime || "--:--",
-        signature: signatureData
+        signature: signatureData,
+        date: selectedDate,
+        room: currentRoomCode
       };
 
-      list.push(newRecord);
+      list.unshift(newRecord);
       saveAttendancesData();
 
-      document.getElementById('attendanceForm').classList.add('hidden');
-      document.getElementById('studentSuccessBox').classList.remove('hidden');
+      transmitAttendanceToSupervisor(newRecord);
+    }
 
-      document.getElementById('confName').innerText = fullName;
-      document.getElementById('confINE').innerText = ine;
-      document.getElementById('confEno').innerText = eno;
-      document.getElementById('confMatiere').innerText = matieresChosen.join(', ');
-      document.getElementById('confTime').innerText = entryTime;
+    async function transmitAttendanceToSupervisor(record) {
+      const btn = document.querySelector('#attendanceForm button[type="submit"]');
+      if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-1"></i> Transmission en direct à la salle...`;
+      }
+
+      try {
+        await publishAttendanceRealtime(record);
+      } catch(err) {
+        console.warn("Transmission temps réel :", err);
+      } finally {
+        document.getElementById('attendanceForm').classList.add('hidden');
+        document.getElementById('studentSuccessBox').classList.remove('hidden');
+
+        document.getElementById('confName').innerText = record.fullName;
+        document.getElementById('confINE').innerText = record.ine;
+        document.getElementById('confEno').innerText = record.eno;
+        document.getElementById('confMatiere').innerText = record.matieresChosen.join(', ');
+        document.getElementById('confTime').innerText = record.entryTime;
+
+        if (btn) {
+          btn.disabled = false;
+          btn.innerHTML = `<i class="fa-solid fa-check"></i> <span>Valider et signer mon émargement</span>`;
+        }
+      }
+    }
+
+    function publishAttendanceRealtime(record) {
+      return new Promise((resolve) => {
+        if (typeof Paho === 'undefined') {
+          resolve(false);
+          return;
+        }
+
+        const payload = JSON.stringify(record);
+        const topicRoom = `unchk/emargement/${selectedDate}/${currentRoomCode}`;
+        const topicGlobal = `unchk/emargement/${selectedDate}`;
+
+        const clientId = 'stud_' + Math.random().toString(16).slice(2);
+        const client = new Paho.MQTT.Client('broker.emqx.io', 8084, '/mqtt', clientId);
+
+        let resolved = false;
+        const timer = setTimeout(() => {
+          if (!resolved) {
+            resolved = true;
+            try { client.disconnect(); } catch(e) {}
+            publishViaHivemq(payload, topicRoom, topicGlobal).then(resolve);
+          }
+        }, 3000);
+
+        client.connect({
+          useSSL: true,
+          timeout: 3,
+          onSuccess: () => {
+            try {
+              const msg1 = new Paho.MQTT.Message(payload);
+              msg1.destinationName = topicRoom;
+              client.send(msg1);
+
+              const msg2 = new Paho.MQTT.Message(payload);
+              msg2.destinationName = topicGlobal;
+              client.send(msg2);
+
+              clearTimeout(timer);
+              resolved = true;
+              setTimeout(() => {
+                try { client.disconnect(); } catch(e) {}
+                resolve(true);
+              }, 200);
+            } catch(e) {
+              clearTimeout(timer);
+              resolved = true;
+              resolve(false);
+            }
+          },
+          onFailure: () => {
+            clearTimeout(timer);
+            if (!resolved) {
+              resolved = true;
+              publishViaHivemq(payload, topicRoom, topicGlobal).then(resolve);
+            }
+          }
+        });
+      });
+    }
+
+    function publishViaHivemq(payload, topicRoom, topicGlobal) {
+      return new Promise((resolve) => {
+        try {
+          const clientId = 'stud_h_' + Math.random().toString(16).slice(2);
+          const client = new Paho.MQTT.Client('broker.hivemq.com', 8884, '/mqtt', clientId);
+          client.connect({
+            useSSL: true,
+            timeout: 3,
+            onSuccess: () => {
+              try {
+                const msg1 = new Paho.MQTT.Message(payload);
+                msg1.destinationName = topicRoom;
+                client.send(msg1);
+
+                const msg2 = new Paho.MQTT.Message(payload);
+                msg2.destinationName = topicGlobal;
+                client.send(msg2);
+
+                setTimeout(() => {
+                  try { client.disconnect(); } catch(e) {}
+                  resolve(true);
+                }, 200);
+              } catch(e) { resolve(false); }
+            },
+            onFailure: () => resolve(false)
+          });
+        } catch(e) { resolve(false); }
+      });
     }
 
     // SIGNATURE TACTILE

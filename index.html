@@ -615,6 +615,25 @@
           </div>
         </div>
 
+        <!-- BANNIÈRE DÉTECTION MULTI-SÉANCES AUTOMATIQUE -->
+        <div id="calendarMultiDaysBanner" class="hidden p-3 bg-emerald-950/80 border border-emerald-500/50 rounded-xl space-y-2 shadow-lg shadow-emerald-950/30">
+          <div class="flex items-center justify-between text-xs font-bold text-emerald-300">
+            <span class="flex items-center gap-1.5">
+              <i class="fa-solid fa-calendar-check text-emerald-400"></i>
+              <span id="multiDaysCountText">Séances détectées dans le tableau</span>
+            </span>
+            <span class="text-[9px] bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded-full font-mono">Tableau UN-CHK</span>
+          </div>
+          <div id="multiDaysListContainer" class="text-[11px] text-slate-300 space-y-1.5 bg-slate-950/90 p-2.5 rounded-lg border border-slate-800 font-mono max-h-36 overflow-y-auto">
+            <!-- Liste générée dynamiquement -->
+          </div>
+          <button type="button" onclick="autoAddAllParsedSessions()" 
+            class="w-full py-2 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-bold rounded-lg text-xs shadow-md shadow-emerald-500/20 transition flex items-center justify-center gap-1.5">
+            <i class="fa-solid fa-calendar-plus"></i>
+            <span id="multiDaysBtnText">⚡ Ajouter automatiquement toutes les séances au planning</span>
+          </button>
+        </div>
+
         <!-- Formulaire de saisie -->
         <form id="newExamForm" onsubmit="saveNewExam(event)" class="space-y-3">
           <div class="grid grid-cols-2 gap-2.5">
@@ -1312,6 +1331,9 @@
       document.getElementById('newExamForm').reset();
       const pasteArea = document.getElementById('pasteCalendarArea');
       if (pasteArea) pasteArea.classList.add('hidden');
+      const banner = document.getElementById('calendarMultiDaysBanner');
+      if (banner) banner.classList.add('hidden');
+      lastParsedCalendarData = null;
     }
 
     function loadExamPreset(presetKey) {
@@ -1481,103 +1503,277 @@
       }
     }
 
+    let lastParsedCalendarData = null;
+
     function parseAndFillOcrText(text) {
       if (!text) return;
-      const lower = text.toLowerCase();
+      const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
 
-      // 1. Filière
-      let detectedFiliere = "";
-      if (lower.includes("multimédia") || lower.includes("mic") || lower.includes("multimedia")) {
-        detectedFiliere = "Multimédia, Internet et Communication (MIC)";
-      } else if (lower.includes("développement") || lower.includes("dai") || lower.includes("developpement")) {
-        detectedFiliere = "Développement d'Applications Internet (DAI)";
-      } else if (lower.includes("informatique")) {
-        detectedFiliere = "Informatique";
-      } else if (lower.includes("droit") || lower.includes("juridique") || lower.includes("sjp")) {
-        detectedFiliere = "Sciences Juridiques et Politiques (SJP)";
-      } else if (lower.includes("seg") || lower.includes("gestion") || lower.includes("économie") || lower.includes("economie")) {
-        detectedFiliere = "Sciences Économiques et Gestion (SEG)";
+      const parsed = {
+        filiere: "",
+        promo: "",
+        session: "",
+        matieres: [],
+        dateDebut: "",
+        dateFin: "",
+        codeFormation: "",
+        days: []
+      };
+
+      // 1. Détection de l'en-tête principal du tableau UN-CHK :
+      // Ex: "Promo 11 - Licence 2/A.G.N : Semestre 3 – 2ème Session (Rattrapage)"
+      const headerLine = lines.find(l => 
+        (/Promo/i.test(l) && /Licence/i.test(l) && /:/i.test(l)) ||
+        (/Promo/i.test(l) && /Semestre/i.test(l)) ||
+        (/Licence/i.test(l) && /Semestre/i.test(l)) ||
+        (/Promo.*(?:A\.G\.N|MIC|DAI|SJP|SEG|SMI|LCDE)/i.test(l))
+      );
+
+      if (headerLine) {
+        // Promotion et Niveau
+        const pMatch = headerLine.match(/Promo(?:tion)?\s*(\d+)/i);
+        const lMatch = headerLine.match(/Licence\s*(\d)/i) || headerLine.match(/\bL(\d)\b/i);
+        if (lMatch && pMatch) {
+          parsed.promo = `Licence ${lMatch[1]} / Promo ${pMatch[1]}`;
+        } else if (pMatch) {
+          parsed.promo = `Promo ${pMatch[1]}`;
+        }
+
+        // Code formation (ex: A.G.N, MIC, DAI, SJP, SEG...)
+        const codeMatch = headerLine.match(/[\/:–]\s*([A-Za-z0-9\.\-]+)\s*:/i) || headerLine.match(/\b(A\.G\.N|MIC|DAI|SJP|SEG|SMI|LCDE)\b/i);
+        if (codeMatch) {
+          parsed.codeFormation = codeMatch[1].trim();
+        }
+
+        // Session (ex: Semestre 3 – 2ème Session (Rattrapage))
+        const sessionMatch = headerLine.match(/:\s*(Semestre\s*\d.*)$/i) || headerLine.match(/(Semestre\s*\d.*?Session.*?)$/i);
+        if (sessionMatch) {
+          parsed.session = sessionMatch[1].trim();
+        }
       }
 
-      // 2. Promotion
-      let detectedPromo = "";
-      const promoMatch = text.match(/promo(?:tion)?\s*(\d+)/i);
-      const licenceMatch = text.match(/licence\s*(\d)/i) || text.match(/\bL(\d)\b/);
-      const masterMatch = text.match(/master\s*(\d)/i) || text.match(/\bM(\d)\b/);
-
-      if (licenceMatch && promoMatch) {
-        detectedPromo = `Licence ${licenceMatch[1]} / Promo ${promoMatch[1]}`;
-      } else if (promoMatch) {
-        detectedPromo = `Promo ${promoMatch[1]}`;
-      } else if (licenceMatch) {
-        detectedPromo = `Licence ${licenceMatch[1]}`;
-      } else if (masterMatch) {
-        detectedPromo = `Master ${masterMatch[1]}`;
+      // Si pas encore de promo
+      if (!parsed.promo) {
+        const pMatch = text.match(/Promo(?:tion)?\s*(\d+)/i);
+        const lMatch = text.match(/Licence\s*(\d)/i) || text.match(/\bL(\d)\b/i);
+        const mMatch = text.match(/Master\s*(\d)/i) || text.match(/\bM(\d)\b/i);
+        if (lMatch && pMatch) parsed.promo = `Licence ${lMatch[1]} / Promo ${pMatch[1]}`;
+        else if (pMatch) parsed.promo = `Promo ${pMatch[1]}`;
+        else if (lMatch) parsed.promo = `Licence ${lMatch[1]}`;
+        else if (mMatch) parsed.promo = `Master ${mMatch[1]}`;
       }
 
-      // 3. Session
-      let detectedSession = "";
-      if (lower.includes("rattrapage") || lower.includes("2ème session") || lower.includes("2eme session") || lower.includes("seconde session")) {
-        const semMatch = text.match(/semestre\s*(\d+)/i) || text.match(/\bS(\d+)\b/);
-        detectedSession = semMatch ? `Semestre ${semMatch[1]} – 2ème session (Rattrapage)` : "2ème session (Rattrapage)";
-      } else if (lower.includes("normale") || lower.includes("1ère session") || lower.includes("1ere session")) {
-        const semMatch = text.match(/semestre\s*(\d+)/i) || text.match(/\bS(\d+)\b/);
-        detectedSession = semMatch ? `Semestre ${semMatch[1]} – Session normale` : "Session normale";
+      // Si pas encore de session
+      if (!parsed.session) {
+        const sMatch = text.match(/Semestre\s*(\d+)/i) || text.match(/\bS(\d+)\b/i);
+        const isRattrapage = /rattrapage|2ème session|2eme session|seconde session/i.test(text);
+        if (sMatch) {
+          parsed.session = `Semestre ${sMatch[1]} – ${isRattrapage ? '2ème session (Rattrapage)' : 'Session normale'}`;
+        } else if (isRattrapage) {
+          parsed.session = "2ème session (Rattrapage)";
+        }
+      }
+
+      // 2. Détection de la Formation / Filière
+      const knownFormations = [
+        { code: "A.G.N", name: "Arts Graphiques et Numériques (A.G.N)", keys: ["arts graphiques", "agn", "a.g.n", "graphique"] },
+        { code: "MIC", name: "Multimédia, Internet et Communication (MIC)", keys: ["multimédia", "multimedia", "mic"] },
+        { code: "DAI", name: "Développement d'Applications Internet (DAI)", keys: ["développement d'applications", "developpement d'applications", "dai"] },
+        { code: "SJP", name: "Sciences Juridiques et Politiques (SJP)", keys: ["sciences juridiques", "droit", "sjp"] },
+        { code: "SEG", name: "Sciences Économiques et Gestion (SEG)", keys: ["sciences économiques", "economiques", "gestion", "seg"] },
+        { code: "SMI", name: "Sciences Mathématiques et Informatique (SMI)", keys: ["mathématiques", "informatique", "smi"] },
+        { code: "LCDE", name: "Langues, Cultures et Développement (LCDE)", keys: ["langues", "cultures", "lcde"] }
+      ];
+
+      const lowerText = text.toLowerCase();
+      for (const f of knownFormations) {
+        if (f.keys.some(k => lowerText.includes(k)) || (parsed.codeFormation && parsed.codeFormation.toLowerCase() === f.code.toLowerCase())) {
+          parsed.filiere = f.name;
+          break;
+        }
+      }
+
+      if (!parsed.filiere) {
+        const formIndex = lines.findIndex(l => /^Formation$/i.test(l) || /Formation/i.test(l));
+        if (formIndex >= 0 && lines[formIndex + 2]) {
+          parsed.filiere = lines[formIndex + 2];
+        } else if (parsed.codeFormation) {
+          parsed.filiere = parsed.codeFormation;
+        }
+      }
+
+      // 3. Année d'examen
+      let defaultYear = "2026";
+      const explicitExamYear = text.match(/(?:janvier|fevrier|f[ée]vrier|mars|avril|mai|juin|juillet|aout|ao[uû]t|septembre|octobre|novembre|d[ée]cembre)\s+(202[4-9])/i);
+      if (explicitExamYear) {
+        defaultYear = explicitExamYear[1];
       } else {
-        const semMatch = text.match(/semestre\s*(\d+)/i);
-        if (semMatch) detectedSession = `Semestre ${semMatch[1]}`;
+        const yearMatch = text.match(/\b(202[4-9])\b/);
+        if (yearMatch) defaultYear = yearMatch[1];
       }
 
-      // 4. Dates
-      const isoDates = text.match(/\b(202[4-9]-\d{2}-\d{2})\b/g);
-      let detectedDate = "";
-      if (isoDates && isoDates.length > 0) {
-        detectedDate = isoDates[0];
+      const moisMap = {
+        janvier: '01', fevrier: '02', février: '02', mars: '03', avril: '04',
+        mai: '05', juin: '06', juillet: '07', aout: '08', août: '08',
+        septembre: '09', octobre: '10', novembre: '11', decembre: '12', décembre: '12'
+      };
+
+      // 4. Détection des Dates et des Matières (EC)
+      const jourRegex = /\b(lundi|mardi|mercredi|jeudi|vendredi|samedi|dimanche)\s+(\d{1,2})\s+([a-zA-Z]+)(?:\s+(\d{4}))?/i;
+
+      let currentDay = null;
+      const tableStart = lines.findIndex(l => /Dates.*Formation.*Matières/i.test(l) || /Matières.*Heures/i.test(l) || /Dates.*Matières/i.test(l));
+      const scanLines = tableStart >= 0 ? lines.slice(tableStart + 1) : lines;
+
+      for (let i = 0; i < scanLines.length; i++) {
+        const line = scanLines[i].trim();
+
+        // Arrêter le scan aux notes de bas de page (NB, consignes)
+        if (/^NB\s*:/i.test(line) || /Les étudiants sont tenus/i.test(line) || /L’étudiant a le choix/i.test(line) || /Une tenue vestimentaire/i.test(line)) {
+          break;
+        }
+
+        const mJour = line.match(jourRegex);
+        if (mJour) {
+          const jourNom = mJour[1].charAt(0).toUpperCase() + mJour[1].slice(1).toLowerCase();
+          const jourNum = mJour[2].padStart(2, '0');
+          const moisNom = mJour[3].toLowerCase();
+          const moisNum = moisMap[moisNom] || '11';
+          const anneeNum = mJour[4] || defaultYear;
+          const isoDate = `${anneeNum}-${moisNum}-${jourNum}`;
+
+          currentDay = {
+            label: `${jourNom} ${jourNum} ${mJour[3]}`,
+            isoDate: isoDate,
+            matieres: []
+          };
+          parsed.days.push(currentDay);
+          continue;
+        }
+
+        // Ignorer les en-têtes et le nom de formation vertical
+        if (/^(dates|formation|matières|matieres|heures|arts graphiques et|numériques)$/i.test(line)) {
+          continue;
+        }
+
+        // Nettoyer les heures (ex: 09h00 – 12h00, 14h30 – 17h30)
+        let cleanedSubject = line.replace(/\b\d{1,2}h\d{2}\s*[-–]\s*\d{1,2}h\d{2}\b/gi, '').trim();
+        cleanedSubject = cleanedSubject.replace(/^[-•*|]+\s*/, '').replace(/^[0-9]+\s*[-–.]\s*/, '').trim();
+
+        if (cleanedSubject.length >= 3 && !cleanedSubject.match(/^(ann[ée]e|direction|pôle|république|ministère|foo nekk)/i)) {
+          if (parsed.filiere && parsed.filiere.toLowerCase().includes(cleanedSubject.toLowerCase())) {
+            continue;
+          }
+          if (currentDay) {
+            currentDay.matieres.push(cleanedSubject);
+          }
+          parsed.matieres.push(cleanedSubject);
+        }
+      }
+
+      // Dates de début et fin
+      if (parsed.days.length > 0) {
+        parsed.dateDebut = parsed.days[0].isoDate;
+        parsed.dateFin = parsed.days[parsed.days.length - 1].isoDate;
       } else {
         const frDateMatch = text.match(/\b(\d{1,2})[/-](\d{1,2})[/-](202[4-9]|\d{2})\b/);
         if (frDateMatch) {
           const d = frDateMatch[1].padStart(2, '0');
           const m = frDateMatch[2].padStart(2, '0');
-          let y = frDateMatch[3];
-          if (y.length === 2) y = "20" + y;
-          detectedDate = `${y}-${m}-${d}`;
+          let y = frDateMatch[3].length === 2 ? "20" + frDateMatch[3] : frDateMatch[3];
+          parsed.dateDebut = `${y}-${m}-${d}`;
+          parsed.dateFin = parsed.dateDebut;
         } else {
-          const moisMap = {
-            janvier: '01', fevrier: '02', février: '02', mars: '03', avril: '04',
-            mai: '05', juin: '06', juillet: '07', aout: '08', août: '08',
-            septembre: '09', octobre: '10', novembre: '11', decembre: '12', décembre: '12'
-          };
-          const textMois = text.match(/(\d{1,2})\s+(janvier|fevrier|février|mars|avril|mai|juin|juillet|aout|août|septembre|octobre|novembre|decembre|décembre)\s*(202\d)?/i);
-          if (textMois) {
-            const d = textMois[1].padStart(2, '0');
-            const m = moisMap[textMois[2].toLowerCase()];
-            const y = textMois[3] || new Date().getFullYear().toString();
-            detectedDate = `${y}-${m}-${d}`;
-          }
+          parsed.dateDebut = selectedDate;
+          parsed.dateFin = selectedDate;
         }
       }
 
-      // 5. Matières (recherche de lignes pertinentes)
-      const rawLines = text.split('\n')
-        .map(l => l.trim().replace(/^[-•*|]+\s*/, ''))
-        .filter(l => l.length > 3 && !l.match(/^(calendrier|date|heure|horaire|épreuve|epreuve|salle|en-tête|page|université|universite|eno|sn|unchk|à l'attention|il est porté|voir ci-joint)/i));
+      lastParsedCalendarData = parsed;
 
-      // Garder les intitulés raisonnables
-      const candidateSubjects = rawLines.filter(l => l.length < 90 && !l.toLowerCase().includes('avis aux'));
-      const detectedMatieres = candidateSubjects.slice(0, 8).join(', ');
+      // 5. Remplissage automatique des champs de la modale
+      if (parsed.filiere) document.getElementById('mAddFiliere').value = parsed.filiere;
+      if (parsed.promo) document.getElementById('mAddPromo').value = parsed.promo;
+      if (parsed.session) document.getElementById('mAddSession').value = parsed.session;
+      if (parsed.matieres.length > 0) document.getElementById('mAddMatieres').value = parsed.matieres.join(', ');
+      if (parsed.dateDebut) document.getElementById('mAddDateDebut').value = parsed.dateDebut;
+      if (parsed.dateFin) document.getElementById('mAddDateFin').value = parsed.dateFin;
 
-      // Application des valeurs trouvées
-      if (detectedFiliere) document.getElementById('mAddFiliere').value = detectedFiliere;
-      if (detectedPromo) document.getElementById('mAddPromo').value = detectedPromo;
-      if (detectedSession) document.getElementById('mAddSession').value = detectedSession;
-      if (detectedMatieres) document.getElementById('mAddMatieres').value = detectedMatieres;
-      if (detectedDate) {
-        document.getElementById('mAddDateDebut').value = detectedDate;
-        document.getElementById('mAddDateFin').value = detectedDate;
+      // 6. Affichage de la bannière multi-séances si plusieurs jours sont présents dans le tableau
+      const banner = document.getElementById('calendarMultiDaysBanner');
+      const listContainer = document.getElementById('multiDaysListContainer');
+      const countText = document.getElementById('multiDaysCountText');
+      const btnText = document.getElementById('multiDaysBtnText');
+
+      if (parsed.days.length > 1 && banner && listContainer) {
+        banner.classList.remove('hidden');
+        if (countText) countText.innerText = `${parsed.days.length} séances détectées dans ce calendrier`;
+        if (btnText) btnText.innerText = `⚡ Ajouter automatiquement toutes les séances (${parsed.days.length}) au planning`;
+
+        listContainer.innerHTML = '';
+        parsed.days.forEach((day) => {
+          const item = document.createElement('div');
+          item.className = "flex items-start justify-between gap-2 border-b border-slate-800 pb-1";
+          item.innerHTML = `
+            <div>
+              <span class="text-cyan-300 font-bold">• ${escapeHtml(day.label)} :</span>
+              <span class="text-slate-300 text-[10px] block mt-0.5">${escapeHtml(day.matieres.join(', '))}</span>
+            </div>
+            <span class="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 text-[10px] shrink-0 font-bold font-mono">
+              ${day.matieres.length} épreuve(s)
+            </span>
+          `;
+          listContainer.appendChild(item);
+        });
+      } else if (banner) {
+        banner.classList.add('hidden');
       }
 
       const pasteInput = document.getElementById('pasteCalendarInput');
       if (pasteInput) pasteInput.value = text;
+    }
+
+    // Ajout en 1 clic de toutes les séances du tableau dans le planning
+    function autoAddAllParsedSessions() {
+      if (!lastParsedCalendarData || !lastParsedCalendarData.days || lastParsedCalendarData.days.length === 0) {
+        alert("Aucune séance à ajouter.");
+        return;
+      }
+
+      const data = lastParsedCalendarData;
+
+      data.days.forEach((day, idx) => {
+        const dayDate = day.isoDate;
+        if (!allExamsByDate[dayDate]) allExamsByDate[dayDate] = [];
+
+        // Éviter d'ajouter deux fois exactement le même examen sur le même jour
+        const exists = allExamsByDate[dayDate].some(e => e.filiere === data.filiere && e.promo === data.promo);
+        if (!exists) {
+          allExamsByDate[dayDate].push({
+            id: "EXAM-AUTO-" + Date.now() + "-" + idx,
+            filiere: data.filiere,
+            promo: data.promo,
+            session: data.session,
+            matieresList: day.matieres,
+            dateDebut: dayDate,
+            dateFin: dayDate
+          });
+        }
+      });
+
+      saveExamsData();
+
+      // Basculer sur la première date du calendrier
+      if (data.days[0] && data.days[0].isoDate) {
+        selectedDate = data.days[0].isoDate;
+        document.getElementById('selectedDateInput').value = selectedDate;
+      }
+
+      closeAddExamModal();
+      renderSupervisorDashboard();
+      renderProjectorScreen();
+      playChimeSound();
+      showLiveToast(`🎉 ${data.days.length} séances pour ${escapeHtml(data.filiere)} ajoutées au planning !`);
     }
 
     function parseAndFillPastedCalendar() {
